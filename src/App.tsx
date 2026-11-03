@@ -15,8 +15,8 @@ export function App() {
           React 19 + Vite + Tailwind CSS v4
         </div>
 
-        <h1 className="text-6xl sm:text-8xl md:text-9xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-sm select-none">
-          hellow world
+        <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-sm select-none">
+          Hellow Synthera
         </h1>
 
         <p className="mt-6 text-slate-400 text-base sm:text-lg max-w-md">
