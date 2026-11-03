@@ -1004,12 +1004,159 @@ function renderSeries(){const tb=$("sr");tb.innerHTML="";
       inp.value=s[f];inp.oninput=function(){s[f]=inp.value;refresh()};td.appendChild(inp);tr.appendChild(td)});
     const x=document.createElement("td");x.className="x";x.appendChild(mkBtn("✕","삭제",function(){R.series.splice(i,1);renderSeries()}));tr.appendChild(x);tb.appendChild(tr)});
   refresh()}
+function buildSeriesForUnit(unit){
+  const dates = Object.keys(typeof LOG !== "undefined" && LOG ? LOG : {}).filter(function(k){
+    return ymd(k) && dailyCalc(LOG[k]).n > 0;
+  }).sort();
+
+  if(!dates.length){
+    if(R.series && R.series.some(function(s){return s.actual;})) return null;
+    const y = (new Date()).getFullYear();
+    if(unit === "분기") return [{period:"1분기",target:"",actual:""},{period:"2분기",target:"",actual:""},{period:"3분기",target:"",actual:""},{period:"4분기",target:"",actual:""}];
+    if(unit === "월") return Array.from({length:12}, function(_,i){ return {period:(i+1)+"월",target:"",actual:""}; });
+    if(unit === "주") return [{period:"1~7일",target:"",actual:""},{period:"8~14일",target:"",actual:""},{period:"15~21일",target:"",actual:""},{period:"22~28일",target:"",actual:""},{period:"29~31일",target:"",actual:""}];
+    if(unit === "반기") return [{period:"상반기",target:"",actual:""},{period:"하반기",target:"",actual:""}];
+    if(unit === "연") return [{period:(y-2)+"년",target:"",actual:""},{period:(y-1)+"년",target:"",actual:""},{period:y+"년",target:"",actual:""}];
+    return null;
+  }
+
+  let targetYear = 0, targetMonth = 0;
+  if($("d-ym") && $("d-ym").value){
+    const ym = $("d-ym").value;
+    const ymMatch = ym.match(/^(\d{4})(?:-(\d{2}))?/);
+    if(ymMatch){
+      targetYear = +ymMatch[1];
+      if(ymMatch[2]) targetMonth = +ymMatch[2];
+    }
+  }
+  if(!targetYear && $("period") && $("period").value){
+    const pVal = $("period").value;
+    const yMatch = pVal.match(/(\d{4})년?/);
+    if(yMatch) targetYear = +yMatch[1];
+    const mMatch = pVal.match(/(\d{1,2})월/);
+    if(mMatch) targetMonth = +mMatch[1];
+  }
+  const lastDt = dates[dates.length - 1];
+  if(!targetYear) targetYear = +lastDt.slice(0, 4);
+  if(!targetMonth) targetMonth = +lastDt.slice(5, 7);
+
+  const sumDates = function(pred){
+    let tot = 0;
+    dates.forEach(function(dt){
+      if(pred(dt)){
+        tot += (dailyCalc(LOG[dt]).ta || 0);
+      }
+    });
+    return tot;
+  };
+
+  const newSeries = [];
+
+  if(unit === "주"){
+    const y = targetYear, m = targetMonth;
+    const dim = new Date(y, m, 0).getDate();
+    const mPrefix = y + "-" + pad2(m) + "-";
+    const mDates = dates.filter(function(k){ return k.indexOf(mPrefix) === 0; });
+    const lastD = mDates.length ? Math.max.apply(null, mDates.map(function(k){ return +k.slice(8, 10); })) : dim;
+    const nb = Math.max(1, Math.ceil(lastD / 7));
+    for(let b = 0; b < nb; b++){
+      const s0 = b * 7 + 1, e0 = Math.min(b * 7 + 7, dim);
+      const cv = Math.min(e0, lastD) - s0 + 1;
+      const label = s0 + "~" + e0 + "일" + (b === nb - 1 && cv < 7 && nb >= 3 ? "(" + cv + "일)" : "");
+      const amt = sumDates(function(dt){
+        if(dt.indexOf(mPrefix) !== 0) return false;
+        const d = +dt.slice(8, 10);
+        return d >= s0 && d <= e0;
+      });
+      newSeries.push({ period: label, target: "", actual: fmtN(amt) });
+    }
+  }
+  else if(unit === "월"){
+    const y = targetYear;
+    const yPrefix = y + "-";
+    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+    const endM = Math.max(maxM, 1);
+    for(let mm = 1; mm <= endM; mm++){
+      const ymStr = y + "-" + pad2(mm);
+      const amt = sumDates(function(dt){ return dt.indexOf(ymStr + "-") === 0; });
+      newSeries.push({ period: mm + "월", target: "", actual: fmtN(amt) });
+    }
+  }
+  else if(unit === "분기"){
+    const y = targetYear;
+    const yPrefix = y + "-";
+    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+    const maxQ = Math.max(1, Math.ceil(maxM / 3));
+    for(let q = 1; q <= maxQ; q++){
+      const mStart = (q - 1) * 3 + 1, mEnd = q * 3;
+      const amt = sumDates(function(dt){
+        if(dt.indexOf(yPrefix) !== 0) return false;
+        const mm = +dt.slice(5, 7);
+        return mm >= mStart && mm <= mEnd;
+      });
+      newSeries.push({ period: q + "분기", target: "", actual: fmtN(amt) });
+    }
+  }
+  else if(unit === "반기"){
+    const y = targetYear;
+    const yPrefix = y + "-";
+    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+    const h1Amt = sumDates(function(dt){
+      if(dt.indexOf(yPrefix) !== 0) return false;
+      const mm = +dt.slice(5, 7);
+      return mm >= 1 && mm <= 6;
+    });
+    newSeries.push({ period: "상반기", target: "", actual: fmtN(h1Amt) });
+    if(maxM > 6 || dates.some(function(dt){ return dt.indexOf(yPrefix) === 0 && +dt.slice(5, 7) > 6; })){
+      const h2Amt = sumDates(function(dt){
+        if(dt.indexOf(yPrefix) !== 0) return false;
+        const mm = +dt.slice(5, 7);
+        return mm >= 7 && mm <= 12;
+      });
+      newSeries.push({ period: "하반기", target: "", actual: fmtN(h2Amt) });
+    }
+  }
+  else if(unit === "연"){
+    const years = dates.map(function(k){ return +k.slice(0, 4); }).filter(function(v,i,a){ return a.indexOf(v) === i; }).sort();
+    years.forEach(function(yr){
+      const yrPrefix = yr + "-";
+      const amt = sumDates(function(dt){ return dt.indexOf(yrPrefix) === 0; });
+      newSeries.push({ period: yr + "년", target: "", actual: fmtN(amt) });
+    });
+  }
+
+  return newSeries;
+}
+
+function updateSeriesForPunit(){
+  const unit = $("punit").value;
+  const newSeries = buildSeriesForUnit(unit);
+  if(newSeries && newSeries.length){
+    const oldTargets = {};
+    (R.series || []).forEach(function(s){
+      if(s.period && s.target) oldTargets[s.period] = s.target;
+    });
+    newSeries.forEach(function(s){
+      if(oldTargets[s.period]) s.target = oldTargets[s.period];
+    });
+    R.series = newSeries;
+    renderSeries();
+  } else {
+    refresh();
+  }
+}
+
 function refresh(){const a=analyze(R.series,$("punit").value,$("unit").value.trim(),$("method").value),box=$("auto"),cv=$("cv");box.innerHTML="";
   if(!a.n){box.innerHTML='<p class="note">기간별 실적을 입력하면 지표·예상·그래프가 여기에 자동으로 나타나요.</p>';cv.style.display="none";return}
   a.kpis.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
     l.textContent=k.label;b.textContent=k.value;sp.textContent=k.note;d.appendChild(l);d.appendChild(b);d.appendChild(sp);box.appendChild(d)});
   cv.style.display="block";drawTrend(cv,a,"매출 추이와 예상")}
-["punit","unit","method"].forEach(function(id){$(id).addEventListener("input",refresh);$(id).addEventListener("change",refresh)});
+$("punit").addEventListener("input",updateSeriesForPunit);
+$("punit").addEventListener("change",updateSeriesForPunit);
+["unit","method"].forEach(function(id){$(id).addEventListener("input",refresh);$(id).addEventListener("change",refresh)});
 $("adds").onclick=function(){R.series.push({period:"",target:"",actual:""});renderSeries()};
 function renderAll(){renderSeries();$("t").value=R.title;$("o").value=R.overview;renderKpis();renderTable();["analysis","issues","plans"].forEach(renderList)}
 $("t").oninput=function(){R.title=$("t").value};$("o").oninput=function(){R.overview=$("o").value};
