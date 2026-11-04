@@ -213,7 +213,8 @@ td button,th button,.li button{padding:5px 10px;border-radius:999px;font-size:13
 <h2><span class="hi"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>2. 일일 일지</h2>
 <p class="note">월간 판매 원장 Excel(주문일자·제품명·금액·주문내역·단가·매출처, 월별 시트가 여러 개여도 돼요)을 올리면 구분(연·분기·월·일자)과 기간(연도·분기·년월)을 고를 수 있어요. 골라서 Word·Excel·PowerPoint·한글용으로 저장해요.</p>
 <div class="dl"><button type="button" data-dl="ledger-12"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>샘플 엑셀 내려받기 (12개월 원장)</button></div>
-<label>월간 판매 원장 불러오기 (.xlsx)<input type="file" id="d-file" accept=".xlsx"></label>
+<label>월간·연간 판매 원장 불러오기 (.xlsx — 2023년, 2024년 등 여러 연도 파일을 한 번에 선택하거나 차례대로 추가할 수 있어요)<input type="file" id="d-file" accept=".xlsx" multiple></label>
+<div id="d-files" class="dl" hidden style="margin:4px 0 10px"></div>
 <p class="msg" id="d-m1" role="status"></p>
 <div id="d-go-wrap" hidden style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
 <button type="button" class="p" onclick="showTab('rep')"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>보고서 작성으로 이동</button>
@@ -812,13 +813,21 @@ function grpRecs(recs,kf,ta){var m={},o=[];recs.forEach(function(r){var k=kf(r)|
   o.sort(function(a,b){return b.a-a.a});o.forEach(function(x){x.share=ta>0?x.a/ta:0});return o}
 var SCW={month:{t:"판매 실적 월 일지",cur:"이번 달",nxt:"다음 달",first:"일자",rows:"일자별",u:"일",avgL:"일평균(판매일 기준)",peakL:"최고 매출일",sheet:"월일지",lab:"대상 월"},
  quarter:{t:"판매 실적 분기 일지",cur:"이번 분기",nxt:"다음 분기",first:"월",rows:"월별",u:"개월",avgL:"월평균(판매월 기준)",peakL:"최고 매출월",sheet:"분기일지",lab:"대상 분기"},
- year:{t:"판매 실적 연 일지",cur:"올해",nxt:"내년",first:"월",rows:"월별",u:"개월",avgL:"월평균(판매월 기준)",peakL:"최고 매출월",sheet:"연일지",lab:"대상 연도"}};
-function scopeOf(k){k=String(k||"");return/Q\d$/.test(k)?"quarter":/^\d{4}$/.test(k)?"year":"month"}
-function monthCalc(logs,month,o){o=o||{};var sc=o.scope||scopeOf(month),W=SCW[sc],key0=String(month||"");
+ year:{t:"판매 실적 연 일지",cur:"올해",nxt:"내년",first:"월",rows:"월별",u:"개월",avgL:"월평균(판매월 기준)",peakL:"최고 매출월",sheet:"연일지",lab:"대상 연도"},
+ all:{t:"판매 실적 다년도 연 일지",cur:"전체 연도",nxt:"다음 해",first:"연도",rows:"연도별",u:"개년",avgL:"연평균(판매연도 기준)",peakL:"최고 매출 연도",sheet:"다년도일지",lab:"대상 기간"}};
+function scopeOf(k){k=String(k||"");return k==="all"?"all":/Q\d$/.test(k)?"quarter":/^\d{4}$/.test(k)?"year":"month"}
+function monthCalc(logs,month,o){o=o||{};var key0=String(month||""),sc=key0==="all"?"all":(o.scope||scopeOf(month)),W=SCW[sc]||SCW.year;
   var y=+key0.slice(0,4),valid=y>0,mo=0,qq=0;
   if(sc==="month"){mo=+key0.slice(5,7);valid=valid&&mo>0}if(sc==="quarter"){qq=+key0.slice(-1);valid=valid&&qq>0}
   var days=[],recs=[],cum=0,units=[];
-  if(sc==="month"){var dim=valid?new Date(y,mo,0).getDate():31;
+  if(sc==="all"){
+    var yrs=Object.keys(logs||{}).filter(ymd).map(function(k){return +k.slice(0,4)}).filter(function(v,i,a){return a.indexOf(v)===i}).sort();
+    valid=yrs.length>0;
+    yrs.forEach(function(yr){var yp=yr+"-",rr=[];
+      Object.keys(logs||{}).sort().forEach(function(k){if(k.indexOf(yp)===0)dailyCalc(Object.assign({},logs[k],{date:k})).rows.forEach(function(r){rr.push(r)})});
+      units.push({d:yr,key:String(yr),lab:yr+"년",dow:"",we:false,rr:rr,note:""})});
+  }
+  else if(sc==="month"){var dim=valid?new Date(y,mo,0).getDate():31;
     for(var d=1;d<=dim;d++){var key=valid?key0+"-"+p2(d):"",lg=logs&&logs[key],c=lg?dailyCalc(Object.assign({},lg,{date:key})):null,dw=valid?new Date(y,mo-1,d).getDay():-1;
       units.push({d:d,key:key,lab:d+"일"+(dw>=0?"("+DOWK[dw]+")":""),dow:dw>=0?DOWK[dw]:"",we:dw===0||dw===6,rr:c?c.rows:[],note:c?c.issues:""})}}
   else{var m0=sc==="year"?1:(valid?(qq-1)*3+1:1),cnt=sc==="year"?12:3;
@@ -832,7 +841,7 @@ function monthCalc(logs,month,o){o=o||{};var sc=o.scope||scopeOf(month),W=SCW[sc
     peak=act.length?act.reduce(function(b,x){return x.a>b.a?x:b},act[0]):null;
   var pays=["현금","어음","분할"].map(function(k){return{name:k,a:sum(recs.filter(function(r){return r.pay===k}).map(function(r){return r.amt||0}))}});
   var oth=ta-sum(pays.map(function(p){return p.a}));if(Math.abs(oth)>.5)pays.push({name:"미선택",a:oth});pays.forEach(function(p){p.share=ta>0?p.a/ta:0});
-  var label=!valid?(sc==="month"?"      년      월":sc==="quarter"?"      년    분기":"      년"):sc==="month"?y+"년 "+mo+"월":sc==="quarter"?y+"년 "+qq+"분기":y+"년";
+  var label=sc==="all"?(units.length?units[0].lab+" ~ "+units[units.length-1].lab:"전체 연도"):!valid?(sc==="month"?"      년      월":sc==="quarter"?"      년    분기":"      년"):sc==="month"?y+"년 "+mo+"월":sc==="quarter"?y+"년 "+qq+"분기":y+"년";
   return{form:!!o.form,guide:!!o.guide,month:month,sc:sc,W:W,label:label,days:days,n:recs.length,tq:tq,ta:ta,act:act.length,avg:act.length?ta/act.length:0,peak:peak,
     cust:grpRecs(recs,function(r){return r.cust},ta),prod:grpRecs(recs,function(r){return r.product},ta),pays:pays,author:o.author||"",issues:String(o.issues||"").trim(),plan:String(o.plan||"").trim()}}
 var MGUIDE="작성 안내: 일자별로 건수·수량·금액(원)을 적으면 누계가 자동 계산돼요. 매출 1위 판매처와 특이사항은 해당 날짜에 적으세요. 일일 일지를 채워 두었다면 이 도구에서 월 일지가 자동으로 만들어져요.";
@@ -1067,18 +1076,22 @@ function buildSeriesForUnit(unit){
 
   if($("d-ym") && $("d-ym").value){
     const ym = $("d-ym").value;
-    const qMatch = ym.match(/^(\d{4})-Q([1-4])$/);
-    const ymMatch = ym.match(/^(\d{4})(?:-(\d{2}))?$/);
-    if(qMatch){
-      targetYear = +qMatch[1];
-      targetQuarter = +qMatch[2];
-      if(!scopeType) scopeType = "quarter";
-    } else if(ymMatch){
-      targetYear = +ymMatch[1];
-      if(ymMatch[2]){
-        targetMonth = +ymMatch[2];
-      } else if(!scopeType){
-        scopeType = "year";
+    if(ym === "all"){
+      scopeType = "all";
+    } else {
+      const qMatch = ym.match(/^(\d{4})-Q([1-4])$/);
+      const ymMatch = ym.match(/^(\d{4})(?:-(\d{2}))?$/);
+      if(qMatch){
+        targetYear = +qMatch[1];
+        targetQuarter = +qMatch[2];
+        if(!scopeType) scopeType = "quarter";
+      } else if(ymMatch){
+        targetYear = +ymMatch[1];
+        if(ymMatch[2]){
+          targetMonth = +ymMatch[2];
+        } else if(!scopeType){
+          scopeType = "year";
+        }
       }
     }
   }
@@ -1139,6 +1152,7 @@ function buildSeriesForUnit(unit){
     return null;
   }
 
+  const allYears = dates.map(function(k){ return +k.slice(0, 4); }).filter(function(v,i,a){ return a.indexOf(v) === i; }).sort();
   const lastDt = dates[dates.length - 1];
   if(!targetYear || !dates.some(function(k){ return +k.slice(0, 4) === targetYear; })){
     targetYear = +lastDt.slice(0, 4);
@@ -1147,7 +1161,8 @@ function buildSeriesForUnit(unit){
   const yDates0 = dates.filter(function(k){ return k.indexOf(yPrefix0) === 0; });
   const yMonths0 = yDates0.map(function(k){ return +k.slice(5, 7); }).filter(function(v,i,a){ return a.indexOf(v) === i; }).sort(function(a,b){ return a - b; });
   if(!scopeType){
-    if(yMonths0.length > 3) scopeType = "year";
+    if(allYears.length > 1) scopeType = "all";
+    else if(yMonths0.length > 3) scopeType = "year";
     else if(yMonths0.length > 1) scopeType = "quarter";
     else scopeType = "month";
   }
@@ -1157,6 +1172,7 @@ function buildSeriesForUnit(unit){
   if(!targetQuarter) targetQuarter = Math.ceil(targetMonth / 3);
 
   const inSelectedScope = function(dt){
+    if(scopeType === "all") return true;
     if(scopeType === "day" && targetDay) return dt === targetDay;
     if(scopeType === "month") return dt.indexOf(targetYear + "-" + pad2(targetMonth) + "-") === 0;
     if(scopeType === "quarter"){
@@ -1178,6 +1194,8 @@ function buildSeriesForUnit(unit){
   };
 
   const newSeries = [];
+  const targetYears = scopeType === "all" ? allYears : [targetYear];
+  const multiY = targetYears.length > 1;
 
   if(unit === "일자"){
     if(scopeType === "day" && targetDay){
@@ -1187,36 +1205,42 @@ function buildSeriesForUnit(unit){
       const scopeDates = dates.filter(inSelectedScope);
       scopeDates.forEach(function(dt){
         const amt = sumDates(function(x){ return x === dt; });
-        newSeries.push({ period: mdKo(dt), target: "", actual: fmtN(amt) });
+        const lab = multiY ? (dt.slice(2,4) + "." + mdKo(dt)) : mdKo(dt);
+        newSeries.push({ period: lab, target: "", actual: fmtN(amt) });
       });
     }
   }
   else if(unit === "주"){
-    const y = targetYear;
-    if(scopeType === "year" || scopeType === "quarter"){
-      const maxM = yMonths0.length ? yMonths0[yMonths0.length - 1] : 12;
-      const mStart = scopeType === "quarter" ? (targetQuarter - 1) * 3 + 1 : 1;
-      const mEnd = scopeType === "quarter" ? targetQuarter * 3 : Math.max(maxM, 1);
-      for(let mm = mStart; mm <= mEnd; mm++){
-        const dim = new Date(y, mm, 0).getDate();
-        const mPrefix = y + "-" + pad2(mm) + "-";
-        const mDates = dates.filter(function(k){ return k.indexOf(mPrefix) === 0; });
-        const lastD = (mm === mEnd && mDates.length && scopeType !== "quarter") ? Math.max.apply(null, mDates.map(function(k){ return +k.slice(8, 10); })) : dim;
-        const nb = Math.max(1, Math.ceil(lastD / 7));
-        for(let b = 0; b < nb; b++){
-          const s0 = b * 7 + 1, e0 = Math.min(b * 7 + 7, dim);
-          const cv = Math.min(e0, lastD) - s0 + 1;
-          const label = mm + "월 " + s0 + "~" + e0 + "일" + (b === nb - 1 && cv < 7 && nb >= 3 ? "(" + cv + "일)" : "");
-          const amt = sumDates(function(dt){
-            if(dt.indexOf(mPrefix) !== 0) return false;
-            const d = +dt.slice(8, 10);
-            return d >= s0 && d <= e0;
-          });
-          newSeries.push({ period: label, target: "", actual: fmtN(amt) });
+    if(scopeType === "all" || scopeType === "year" || scopeType === "quarter"){
+      targetYears.forEach(function(y){
+        const yp = y + "-";
+        const yDts = dates.filter(function(k){ return k.indexOf(yp) === 0; });
+        const yMs = yDts.map(function(k){ return +k.slice(5, 7); }).filter(function(v,i,a){ return a.indexOf(v) === i; }).sort(function(a,b){ return a - b; });
+        const maxM = yMs.length ? yMs[yMs.length - 1] : 12;
+        const mStart = scopeType === "quarter" ? (targetQuarter - 1) * 3 + 1 : 1;
+        const mEnd = scopeType === "quarter" ? targetQuarter * 3 : Math.max(maxM, 1);
+        const yTag = multiY ? String(y).slice(2) + "." : "";
+        for(let mm = mStart; mm <= mEnd; mm++){
+          const dim = new Date(y, mm, 0).getDate();
+          const mPrefix = y + "-" + pad2(mm) + "-";
+          const mDates = dates.filter(function(k){ return k.indexOf(mPrefix) === 0; });
+          const lastD = (mm === mEnd && mDates.length && scopeType !== "quarter") ? Math.max.apply(null, mDates.map(function(k){ return +k.slice(8, 10); })) : dim;
+          const nb = Math.max(1, Math.ceil(lastD / 7));
+          for(let b = 0; b < nb; b++){
+            const s0 = b * 7 + 1, e0 = Math.min(b * 7 + 7, dim);
+            const cv = Math.min(e0, lastD) - s0 + 1;
+            const label = yTag + mm + "월 " + s0 + "~" + e0 + "일" + (b === nb - 1 && cv < 7 && nb >= 3 ? "(" + cv + "일)" : "");
+            const amt = sumDates(function(dt){
+              if(dt.indexOf(mPrefix) !== 0) return false;
+              const d = +dt.slice(8, 10);
+              return d >= s0 && d <= e0;
+            });
+            newSeries.push({ period: label, target: "", actual: fmtN(amt) });
+          }
         }
-      }
+      });
     } else {
-      const m = targetMonth;
+      const y = targetYear, m = targetMonth;
       const dim = new Date(y, m, 0).getDate();
       const mPrefix = y + "-" + pad2(m) + "-";
       const mDates = dates.filter(function(k){ return k.indexOf(mPrefix) === 0; });
@@ -1236,73 +1260,80 @@ function buildSeriesForUnit(unit){
     }
   }
   else if(unit === "월"){
-    const y = targetYear;
-    const yPrefix = y + "-";
-    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
-    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
-    let mStart = 1, mEnd = Math.max(maxM, 1);
-    if(scopeType === "quarter"){
-      mStart = (targetQuarter - 1) * 3 + 1;
-      mEnd = targetQuarter * 3;
-    } else if(scopeType === "month" || scopeType === "day"){
-      mStart = targetMonth;
-      mEnd = targetMonth;
-    }
-    for(let mm = mStart; mm <= mEnd; mm++){
-      const ymStr = y + "-" + pad2(mm);
-      const amt = sumDates(function(dt){ return dt.indexOf(ymStr + "-") === 0; });
-      newSeries.push({ period: mm + "월", target: "", actual: fmtN(amt) });
-    }
+    targetYears.forEach(function(y){
+      const yPrefix = y + "-";
+      const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+      const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+      let mStart = 1, mEnd = Math.max(maxM, 1);
+      if(scopeType === "quarter"){
+        mStart = (targetQuarter - 1) * 3 + 1;
+        mEnd = targetQuarter * 3;
+      } else if(scopeType === "month" || scopeType === "day"){
+        mStart = targetMonth;
+        mEnd = targetMonth;
+      }
+      const yTag = multiY ? String(y).slice(2) + "." : "";
+      for(let mm = mStart; mm <= mEnd; mm++){
+        const ymStr = y + "-" + pad2(mm);
+        const amt = sumDates(function(dt){ return dt.indexOf(ymStr + "-") === 0; });
+        newSeries.push({ period: yTag + mm + "월", target: "", actual: fmtN(amt) });
+      }
+    });
   }
   else if(unit === "분기"){
-    const y = targetYear;
-    const yPrefix = y + "-";
-    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
-    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
-    let qStart = 1, qEnd = Math.max(1, Math.ceil(maxM / 3));
-    if(scopeType === "quarter" || scopeType === "month" || scopeType === "day"){
-      qStart = targetQuarter;
-      qEnd = targetQuarter;
-    }
-    for(let q = qStart; q <= qEnd; q++){
-      const mStart = (q - 1) * 3 + 1, mEnd = q * 3;
-      const amt = sumDates(function(dt){
-        if(dt.indexOf(yPrefix) !== 0) return false;
-        const mm = +dt.slice(5, 7);
-        return mm >= mStart && mm <= mEnd;
-      });
-      newSeries.push({ period: q + "분기", target: "", actual: fmtN(amt) });
-    }
+    targetYears.forEach(function(y){
+      const yPrefix = y + "-";
+      const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+      const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+      let qStart = 1, qEnd = Math.max(1, Math.ceil(maxM / 3));
+      if(scopeType === "quarter" || scopeType === "month" || scopeType === "day"){
+        qStart = targetQuarter;
+        qEnd = targetQuarter;
+      }
+      const yTag = multiY ? String(y).slice(2) + "년 " : "";
+      for(let q = qStart; q <= qEnd; q++){
+        const mStart = (q - 1) * 3 + 1, mEnd = q * 3;
+        const amt = sumDates(function(dt){
+          if(dt.indexOf(yPrefix) !== 0) return false;
+          const mm = +dt.slice(5, 7);
+          return mm >= mStart && mm <= mEnd;
+        });
+        newSeries.push({ period: yTag + q + "분기", target: "", actual: fmtN(amt) });
+      }
+    });
   }
   else if(unit === "반기"){
-    const y = targetYear;
-    const yPrefix = y + "-";
-    const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
-    const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
-    const wantH1 = scopeType === "year" || targetMonth <= 6 && (scopeType !== "quarter" || targetQuarter <= 2);
-    const wantH2 = (scopeType === "year" && (maxM > 6 || dates.some(function(dt){ return dt.indexOf(yPrefix) === 0 && +dt.slice(5, 7) > 6; }))) || (scopeType === "quarter" && targetQuarter > 2) || ((scopeType === "month" || scopeType === "day") && targetMonth > 6);
-    if(wantH1){
-      const h1Amt = sumDates(function(dt){
-        if(dt.indexOf(yPrefix) !== 0) return false;
-        const mm = +dt.slice(5, 7);
-        return mm >= 1 && mm <= 6;
-      });
-      newSeries.push({ period: "상반기", target: "", actual: fmtN(h1Amt) });
-    }
-    if(wantH2){
-      const h2Amt = sumDates(function(dt){
-        if(dt.indexOf(yPrefix) !== 0) return false;
-        const mm = +dt.slice(5, 7);
-        return mm >= 7 && mm <= 12;
-      });
-      newSeries.push({ period: "하반기", target: "", actual: fmtN(h2Amt) });
-    }
+    targetYears.forEach(function(y){
+      const yPrefix = y + "-";
+      const yDates = dates.filter(function(k){ return k.indexOf(yPrefix) === 0; });
+      const maxM = yDates.length ? Math.max.apply(null, yDates.map(function(k){ return +k.slice(5, 7); })) : 12;
+      const wantH1 = scopeType === "all" || scopeType === "year" || (targetMonth <= 6 && (scopeType !== "quarter" || targetQuarter <= 2));
+      const wantH2 = ((scopeType === "all" || scopeType === "year") && (maxM > 6 || dates.some(function(dt){ return dt.indexOf(yPrefix) === 0 && +dt.slice(5, 7) > 6; }))) || (scopeType === "quarter" && targetQuarter > 2) || ((scopeType === "month" || scopeType === "day") && targetMonth > 6);
+      const yTag = multiY ? String(y).slice(2) + "년 " : "";
+      if(wantH1){
+        const h1Amt = sumDates(function(dt){
+          if(dt.indexOf(yPrefix) !== 0) return false;
+          const mm = +dt.slice(5, 7);
+          return mm >= 1 && mm <= 6;
+        });
+        newSeries.push({ period: yTag + "상반기", target: "", actual: fmtN(h1Amt) });
+      }
+      if(wantH2){
+        const h2Amt = sumDates(function(dt){
+          if(dt.indexOf(yPrefix) !== 0) return false;
+          const mm = +dt.slice(5, 7);
+          return mm >= 7 && mm <= 12;
+        });
+        newSeries.push({ period: yTag + "하반기", target: "", actual: fmtN(h2Amt) });
+      }
+    });
   }
   else if(unit === "연"){
-    const yr = targetYear;
-    const yrPrefix = yr + "-";
-    const amt = sumDates(function(dt){ return dt.indexOf(yrPrefix) === 0; });
-    newSeries.push({ period: yr + "년", target: "", actual: fmtN(amt) });
+    targetYears.forEach(function(yr){
+      const yrPrefix = yr + "-";
+      const amt = sumDates(function(dt){ return dt.indexOf(yrPrefix) === 0; });
+      newSeries.push({ period: yr + "년", target: "", actual: fmtN(amt) });
+    });
   }
 
   return newSeries;
@@ -1486,14 +1517,14 @@ $("dh").onclick=async function(){
     msg("m2","저장했어요. 한글에서 이 파일을 열고 '파일 > 다른 이름으로 저장'에서 HWP/HWPX를 고르면 한글 파일이 돼요.")}
   catch(e){msg("m2","저장 오류: "+e.message,1)}};
 /* ---------- 일일 일지 (월간 원장 → 구분·기간) ---------- */
-let LOG={},mMonthSel="",PS="month";
+let LOG={},LOADED_FILES=[],mMonthSel="",PS="month";
 const clone=function(o){return JSON.parse(JSON.stringify(o))};
 function persist(){}
-function loadStore(){try{localStorage.removeItem("synthera_daily_logs")}catch(e){}LOG={}}
+function loadStore(){try{localStorage.removeItem("synthera_daily_logs")}catch(e){}LOG={};LOADED_FILES=[]}
 function commitDay(){}
 /* 월간 판매 원장 Excel → 날짜별 일지 */
 function toIso(v){if(v instanceof Date)return v.toISOString().slice(0,10);const m=String(v==null?"":v).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);return m?m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2):""}
-function ledgerFromWb(wb){
+function parseLedgerWb(wb){
   const by={};let n=0,sheets=0;
   wb.worksheets.forEach(function(ws){
     let hr=0,col={};for(let r=1;r<=Math.min(ws.rowCount,15)&&!hr;r++){const m={};for(let c=1;c<=ws.columnCount;c++){const t=cellText(ws.getCell(r,c).value).trim();if(t)m[t]=c}if(m["주문일자"]&&(m["판매처"]||m["매출처"])&&(m["주문내역"]||m["수량"]||m["주문수량"])){hr=r;col=m}}
@@ -1505,8 +1536,42 @@ function ledgerFromWb(wb){
       const row={product:pr,pcode:pcode,qty:cellStr(ws.getCell(r,cQ)).trim(),order:"",unit:cU?cellStr(ws.getCell(r,cU)).trim():"",sell:cU?cellStr(ws.getCell(r,cU)).trim():"",cust:cu,ccode:ccode,pay:""};
       if(!(row.product||row.qty||row.cust))continue;(by[ds]=by[ds]||[]).push(row);n++}});
   if(!sheets)return null;if(!n)throw new Error("판매 내역을 찾지 못했어요");
-  commitDay();LOG={};const ks=Object.keys(by).sort();ks.forEach(function(d){LOG[d]={date:d,author:"",rows:by[d],issues:"",plan:""}});persist();
-  return{days:ks.length,n:n,first:ks[0],sheets:sheets}}
+  const ks=Object.keys(by).sort();
+  const yrs=ks.map(function(k){return k.slice(0,4)}).filter(function(v,i,a){return a.indexOf(v)===i});
+  return{by:by,days:ks.length,n:n,first:ks[0],sheets:sheets,years:yrs}}
+function rebuildLogFromFiles(){
+  commitDay();LOG={};
+  LOADED_FILES.forEach(function(item){
+    Object.keys(item.by).forEach(function(d){
+      if(!LOG[d])LOG[d]={date:d,author:"",rows:[],issues:"",plan:""};
+      LOG[d].rows=LOG[d].rows.concat(item.by[d]);
+    });
+  });
+  persist();renderLoadedFiles();
+}
+function renderLoadedFiles(){
+  const box=$("d-files");if(!box)return;
+  box.innerHTML="";
+  if(!LOADED_FILES.length){box.hidden=true;return}box.hidden=false;const addBtn=document.createElement("button");addBtn.type="button";addBtn.style.cssText="padding:6px 14px;font-size:13px;background:var(--sf);border:1px dashed var(--ink);color:var(--ink);border-radius:999px;font-weight:600;cursor:pointer;margin-left:4px";addBtn.textContent="＋ 다른 연도 파일 추가하기";addBtn.onclick=function(){$("d-file").click();};
+  box.hidden=false;
+  LOADED_FILES.forEach(function(item,idx){
+    const b=document.createElement("button");b.type="button";
+    b.style.cssText="padding:6px 14px;font-size:13px;background:var(--hl);color:var(--pos-deep);border-radius:999px";
+    const yTxt=item.years&&item.years.length?item.years.join(",")+"년 · ":"";
+    b.textContent="📄 "+item.name+" ("+yTxt+item.n+"건) ✕";
+    b.title="클릭하면 이 파일만 목록에서 제외합니다";
+    b.onclick=function(){
+      LOADED_FILES.splice(idx,1);
+      rebuildLogFromFiles();
+      if(Object.keys(LOG).length){
+        const dk=detectLogKind();$("d-kind").value=dk;lastKind=dk;dRender("today");autoReport(true);
+      }else{
+        R=blankReport();$("d-q").value="";if($("d-pq"))$("d-pq").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","모든 원장 파일을 제외했어요.");
+      }
+    };
+    box.appendChild(b);if(idx===LOADED_FILES.length-1)box.appendChild(addBtn);
+  });
+}
 let lastAutoCompany="";
 function searchSummaryLabel(){
   const qVal=($("d-q")&&$("d-q").value||"").trim(),pqVal=($("d-pq")&&$("d-pq").value||"").trim();
@@ -1540,19 +1605,21 @@ function makeReport(sub,auto,syncPunit){commitDay();
   if(auto)msg("d-m1",sLab?(sLab+" 검색 결과("+c.stats.n+"건)가 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요."):"선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
 
 function dKey(){return $("d-kind").value}
-function dBaseName(){const k=dKey();return(k==="day"?($("d-day").value||$("d-ym").value):$("d-ym").value)+"_판매실적_"+(k==="day"?"일일일지":k==="year"?"연일지":k==="quarter"?"분기일지":"월일지")}
+function dBaseName(){const k=dKey(),ym=$("d-ym").value==="all"?"전체연도":$("d-ym").value;return(k==="day"?($("d-day").value||ym):ym)+"_판매실적_"+(k==="day"?"일일일지":k==="year"?"연일지":k==="quarter"?"분기일지":"월일지")}
 function fillSel(sel,vals,lab,want){const cur=want&&vals.indexOf(want)>=0?want:(vals.indexOf(sel.value)>=0?sel.value:vals[0]);sel.innerHTML="";vals.forEach(function(v){const o=document.createElement("option");o.value=v;o.textContent=lab(v);sel.appendChild(o)});if(cur)sel.value=cur}
 function pad2(n){return("0"+n).slice(-2)}
 function todayIso(){const t=new Date();return t.getFullYear()+"-"+pad2(t.getMonth()+1)+"-"+pad2(t.getDate())}
 function qKey(k){return k.slice(0,4)+"-Q"+Math.ceil(+k.slice(5,7)/3)}
 function kKey(kind,k){return kind==="year"?k.slice(0,4):kind==="quarter"?qKey(k):k.slice(0,7)}
-function inP(k,kind,ym){return kKey(kind,k)===ym}
-function convKey(old,kind){if(!old)return kKey(kind,todayIso());const t=todayIso();let y=old.slice(0,4),m;
+function inP(k,kind,ym){return ym==="all"?true:kKey(kind,k)===ym}
+function convKey(old,kind){if(!old||old==="all")return kKey(kind,todayIso());const t=todayIso();let y=old.slice(0,4),m;
   if(old.length===4)m=y===t.slice(0,4)?t.slice(5,7):"01";else if(old[5]==="Q")m=pad2((+old.slice(-1)-1)*3+1);else m=old.slice(5,7);return kKey(kind,y+"-"+m+"-01")}
-function ymLabel(kind,v){return kind==="year"?v+"년":kind==="quarter"?v.slice(0,4)+"년 "+v.slice(-1)+"분기":v.slice(0,4)+"년 "+parseInt(v.slice(5),10)+"월"}
+function ymLabel(kind,v,dataVals){if(v==="all")return dataVals&&dataVals.length>1?"전체 ("+dataVals[0]+"년 ~ "+dataVals[dataVals.length-1]+"년)":"전체 연도";return kind==="year"?v+"년":kind==="quarter"?v.slice(0,4)+"년 "+v.slice(-1)+"분기":v.slice(0,4)+"년 "+parseInt(v.slice(5),10)+"월"}
 function detectLogKind(){
   const ks=Object.keys(LOG).sort().filter(function(k){return dailyCalc(LOG[k]).n>0});
   if(!ks.length)return "month";
+  const yrs=ks.map(function(k){return k.slice(0,4)}).filter(function(v,i,a){return a.indexOf(v)===i});
+  if(yrs.length>1)return "year";
   const lastY=ks[ks.length-1].slice(0,4);
   const ms=ks.filter(function(k){return k.slice(0,4)===lastY}).map(function(k){return +k.slice(5,7)}).filter(function(v,i,a){return a.indexOf(v)===i});
   return ms.length>3?"year":ms.length>1?"quarter":"month";
@@ -1563,12 +1630,16 @@ function dRender(mode){/* mode: "today" = 오늘 기준으로 맞춤 */
   const hasData=ks.length>0;
   $("d-pick").hidden=!hasData;if($("d-go-wrap"))$("d-go-wrap").hidden=!hasData;if(!hasData)return;
   const today=todayIso(),base=(kind==="day"?"month":kind),keyK=isDay?"month":kind;
-  const dataVals=[];ks.forEach(function(k){const v=kKey(keyK,k);if(dataVals.indexOf(v)<0)dataVals.push(v)});
-  const vals=dataVals.slice();const tv=kKey(keyK,today);if(vals.indexOf(tv)<0)vals.push(tv);vals.sort();
+  const dataVals=[];ks.forEach(function(k){const v=kKey(keyK,k);if(dataVals.indexOf(v)<0)dataVals.push(v)});dataVals.sort();
+  const vals=dataVals.length?dataVals.slice():[kKey(keyK,today)];
+  if(isYear&&dataVals.length>1)vals.unshift("all");
   $("d-ymw").firstChild.textContent=isYear?"기간(연도)":kind==="quarter"?"기간(분기)":"기간(년월)";
-  const defVal=dataVals.length&&dataVals.indexOf(tv)<0?dataVals[dataVals.length-1]:tv;
-  let want=mode==="today"?defVal:(lastKind!==kind?convKey($("d-ym").value,keyK):$("d-ym").value);lastKind=kind;
-  fillSel($("d-ym"),vals,function(v){return ymLabel(keyK,v)},want);
+  const tv=kKey(keyK,today);
+  const defVal=(isYear&&dataVals.length>1)?"all":(dataVals.length&&dataVals.indexOf(tv)<0?dataVals[dataVals.length-1]:tv);
+  let want=mode==="today"?defVal:(lastKind!==kind?(isYear&&dataVals.length>1?"all":convKey($("d-ym").value,keyK)):$("d-ym").value);
+  if(vals.indexOf(want)<0)want=defVal;
+  lastKind=kind;
+  fillSel($("d-ym"),vals,function(v){return ymLabel(keyK,v,dataVals)},want);
   const ym=$("d-ym").value;$("d-dayw").hidden=!isDay;
   let sel;
   if(isDay){const dv=ks.filter(function(k){return k.slice(0,7)===ym});if(today.slice(0,7)===ym&&dv.indexOf(today)<0)dv.push(today);dv.sort();
@@ -1610,12 +1681,24 @@ $("d-dp").onclick=async function(){const e=dTool(typeof PptxGenJS!=="undefined")
   try{const isD=dKey()==="day";save(await(isD?buildDailyPptx(dObj()):buildMonthlyPptx(dObj())).write({outputType:"blob"}),dBaseName()+".pptx");msg("d-m2","PowerPoint 파일을 저장했어요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
 $("d-dh").onclick=async function(){const e=dTool(typeof docx!=="undefined");if(e)return msg("d-m2",e,1);
   try{const isD=dKey()==="day";save(await docx.Packer.toBlob(isD?buildDailyDocx(dObj()):buildMonthlyDocx(dObj())),dBaseName()+"_한글용.docx");msg("d-m2","저장했어요. 한글에서 열고 '다른 이름으로 저장'에서 HWP/HWPX를 고르면 한글 파일이 돼요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
-$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};persist();R=blankReport();$("d-q").value="";if($("d-pq"))$("d-pq").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
-$("d-file").onchange=async function(){const f=$("d-file").files[0];if(!f)return;
-  try{if(typeof ExcelJS==="undefined")throw new Error("인터넷 연결이 필요해요");if(!/\.xlsx$/i.test(f.name))throw new Error("지원하지 않는 형식이에요 (.xlsx만 가능)");
-    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());const L=ledgerFromWb(wb);if(!L)throw new Error("주문일자·제품명·주문내역·단가·매출처 열이 있는 원장 형식이 아니에요");
+$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};LOADED_FILES=[];renderLoadedFiles();persist();R=blankReport();$("d-q").value="";if($("d-pq"))$("d-pq").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
+$("d-file").onchange=async function(){const files=[].slice.call($("d-file").files||[]);if(!files.length)return;
+  try{if(typeof ExcelJS==="undefined")throw new Error("인터넷 연결이 필요해요");
+    let addedN=0,addedSheets=0;
+    for(let i=0;i<files.length;i++){
+      const f=files[i];
+      if(!/\.xlsx$/i.test(f.name))throw new Error(f.name+": 지원하지 않는 형식이에요 (.xlsx만 가능)");
+      const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
+      const L=parseLedgerWb(wb);if(!L)throw new Error(f.name+": 주문일자·제품명·주문내역·단가·매출처 열이 있는 원장 형식이 아니에요");
+      const existIdx=LOADED_FILES.findIndex(function(x){return x.name===f.name});
+      const entry={name:f.name,by:L.by,n:L.n,days:L.days,sheets:L.sheets,years:L.years};
+      if(existIdx>=0)LOADED_FILES[existIdx]=entry;else LOADED_FILES.push(entry);
+      addedN+=L.n;addedSheets+=L.sheets;
+    }
+    rebuildLogFromFiles();
+    const totalDays=Object.keys(LOG).length,totalN=LOADED_FILES.reduce(function(s,x){return s+x.n},0);
     const dk=detectLogKind();$("d-kind").value=dk;lastKind=dk;dRender("today");autoReport(true);
-    msg("d-m1","주문 "+L.n+"건을 날짜별 일지 "+L.days+"개로 나눠 넣었어요"+(L.sheets>1?"(시트 "+L.sheets+"개)":"")+". 구분과 기간을 고르면 이후 단계의 보고서 내용이 자동으로 채워져요.")}
+    msg("d-m1","파일 "+LOADED_FILES.length+"개(총 주문 "+totalN+"건 · "+totalDays+"일치)가 적용되었어요. 추가로 다른 연도·월 파일을 더 올리면 자동으로 합쳐져요.")}
   catch(e){msg("d-m1","불러오지 못했어요: "+e.message,1)}$("d-file").value=""};
 function showTab(t){if(t==="rep"&&window.goStep)window.goStep(2)}
 loadStore();dRender();
