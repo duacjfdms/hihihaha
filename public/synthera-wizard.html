@@ -249,7 +249,10 @@ button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
 <label id="d-ymw" style="max-width:220px">기간(년월)<select id="d-ym"></select></label>
 <label id="d-dayw" style="max-width:220px" hidden>일자<select id="d-day"></select></label>
 </div>
-<label style="max-width:360px;margin-top:4px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>판매처 검색</span><input id="d-q" type="search" placeholder="판매처 이름을 입력하세요 (예: 대성상사)" autocomplete="off"></label>
+<div class="row" style="margin-top:4px">
+<label style="max-width:360px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>매출처(판매처) 검색</span><input id="d-q" type="search" placeholder="매출처명 또는 매출처 코드 (예: 대성상사, CUST-001)" autocomplete="off"></label>
+<label style="max-width:360px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>제품 코드 · 제품명 검색</span><input id="d-pq" type="search" placeholder="제품명 또는 제품 코드 (예: 무선 마우스, PRD-007)" autocomplete="off"></label>
+</div>
 <p class="note" id="d-qn" hidden></p>
 <div class="tw" style="max-height:480px;overflow:auto"><table style="min-width:640px"><thead id="d-th"></thead><tbody id="d-tb"></tbody></table></div>
 <div id="d-cards" class="cards"></div>
@@ -603,14 +606,18 @@ function buildXlsx(r){
 function fmtN(n){return n==null||isNaN(n)?"":Math.round(n).toLocaleString("ko-KR")}
 function fmtPct(x){return(x*100).toFixed(1)+"%"}
 function dateKo(s){var m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[1]+"년 "+m[2]+"월 "+m[3]+"일":String(s||"")}
+var DEF_PCODE={"27인치 모니터":"PRD-001","USB-C 허브":"PRD-002","게이밍 헤드셋":"PRD-003","기계식 키보드":"PRD-004","노트북 거치대":"PRD-005","마우스 패드":"PRD-006","무선 마우스":"PRD-007","무선 충전 패드":"PRD-008","미니 블루투스 스피커":"PRD-009","블루투스 이어폰":"PRD-010","스마트 충전기":"PRD-011","스마트워치":"PRD-012","외장 SSD 1TB":"PRD-013","웹캠 FHD":"PRD-014","휴대용 보조배터리":"PRD-015"};
+var DEF_CCODE={"대성상사":"CUST-001","미래전자":"CUST-002","새봄물산":"CUST-003","오로라마트":"CUST-004","오로라마":"CUST-004","한빛유통":"CUST-005"};
+function getPCode(name,code){var c=String(code||"").trim();if(c)return c;var k=String(name||"").trim();if(!k)return "";if(!DEF_PCODE[k]){var n=Object.keys(DEF_PCODE).length+1;DEF_PCODE[k]="PRD-"+("00"+n).slice(-3)}return DEF_PCODE[k]}
+function getCCode(name,code){var c=String(code||"").trim();if(c)return c;var k=String(name||"").trim();if(!k)return "";if(!DEF_CCODE[k]){var used={};Object.keys(DEF_CCODE).forEach(function(x){used[DEF_CCODE[x]]=1});var n=Object.keys(used).length+1;DEF_CCODE[k]="CUST-"+("00"+n).slice(-3)}return DEF_CCODE[k]}
 function dailyCalc(d){
   var rows=[];(d.rows||[]).forEach(function(r){
     if(!(r.product||r.qty||r.order||r.unit||r.sell||r.cust))return;
-    var q=parseAmt(r.qty),p=parseAmt(r.sell);
-    rows.push({product:r.product||"",qty:q,order:r.order||"",unit:parseAmt(r.unit),sell:p,cust:String(r.cust||"").trim(),pay:r.pay||"",amt:(q!=null&&p!=null)?q*p:null,ex:/^\(예시\)/.test(r.product||"")})});
+    var q=parseAmt(r.qty),p=parseAmt(r.sell),pr=String(r.product||"").trim(),cu=String(r.cust||"").trim();
+    rows.push({product:pr,pcode:getPCode(pr,r.pcode),qty:q,order:r.order||"",unit:parseAmt(r.unit),sell:p,cust:cu,ccode:getCCode(cu,r.ccode),pay:r.pay||"",amt:(q!=null&&p!=null)?q*p:null,ex:/^\(예시\)/.test(pr)})});
   var all=rows;rows=rows.filter(function(x){return!x.ex});
   var tq=sum(rows.map(function(x){return x.qty||0})),ta=sum(rows.map(function(x){return x.amt||0})),cs=[],cm={};
-  rows.forEach(function(x){var k=x.cust||"(미입력)";if(!cm[k]){cm[k]={name:k,n:0,q:0,a:0};cs.push(cm[k])}cm[k].n++;cm[k].q+=x.qty||0;cm[k].a+=x.amt||0});
+  rows.forEach(function(x){var k=x.cust||"(미입력)";if(!cm[k]){cm[k]={name:k,code:x.ccode||"",n:0,q:0,a:0};cs.push(cm[k])}if(!cm[k].code&&x.ccode)cm[k].code=x.ccode;cm[k].n++;cm[k].q+=x.qty||0;cm[k].a+=x.amt||0});
   cs.forEach(function(c){c.share=ta>0?c.a/ta:0});
   var pays=["현금","어음","분할"].map(function(k){return{name:k,a:sum(rows.filter(function(x){return x.pay===k}).map(function(x){return x.amt||0}))}});
   var oth=ta-sum(pays.map(function(p){return p.a}));if(Math.abs(oth)>.5)pays.push({name:"미선택",a:oth});
@@ -773,9 +780,9 @@ function compileReport(logs){
     if(lg.author)au[lg.author]=(au[lg.author]||0)+1});
   if(!recs.length)return null;
   var A=function(r){return r.amt||0},ta=sum(recs.map(A)),tq=sum(recs.map(function(r){return r.qty||0})),n=recs.length;
-  var grp=function(kf){var m={},o=[];recs.forEach(function(r){var k=kf(r)||"(미입력)";if(!m[k]){m[k]={name:k,n:0,q:0,a:0};o.push(m[k])}m[k].n++;m[k].q+=r.qty||0;m[k].a+=A(r)});
+  var grp=function(kf,cf){var m={},o=[];recs.forEach(function(r){var k=kf(r)||"(미입력)",cd=cf?cf(r):"";if(!m[k]){m[k]={name:k,code:cd||"",n:0,q:0,a:0};o.push(m[k])}if(!m[k].code&&cd)m[k].code=cd;m[k].n++;m[k].q+=r.qty||0;m[k].a+=A(r)});
     o.sort(function(a,b){return b.a-a.a});o.forEach(function(x){x.share=ta>0?x.a/ta:0});return o};
-  var cu=grp(function(r){return r.cust}),pr=grp(function(r){return r.product});
+  var cu=grp(function(r){return r.cust},function(r){return r.ccode}),pr=grp(function(r){return r.product},function(r){return r.pcode});
   var dm={};recs.forEach(function(r){dm[r.date]=(dm[r.date]||0)+A(r)});
   var dd=Object.keys(dm).sort(),days=dd.length,peak=dd.reduce(function(b,k){return dm[k]>dm[b]?k:b},dd[0]);
   var f=ymd(dd[0]),l=ymd(dd[dd.length-1]),same=f.y===l.y&&f.m===l.m;
@@ -791,31 +798,32 @@ function compileReport(logs){
     recs.forEach(function(r){var t=ymd(r.date);buckets.filter(function(x){return x.y===t.y&&x.m===t.m})[0].a+=A(r)})}
   var series=buckets.map(function(x){return{period:x.label,target:"",actual:fmtN(x.a)}});
   var pc=fmtPct,won=function(v){return fmtN(v)+"원"};
+  var cu0=cu[0].name+(cu[0].code?" ("+cu[0].code+")":""),pr0=pr[0].name+(pr[0].code?" ("+pr[0].code+")":"");
   var kpis=[{label:"총 매출",value:won(ta),change:"",note:n+"건 · 판매 "+days+"일"},
     {label:"총 판매 수량",value:fmtN(tq)+"개",change:"",note:"주문 "+n+"건 합계"},
     {label:"일평균 매출",value:won(ta/days),change:"",note:"판매가 있었던 "+days+"일 기준"},
     {label:"건당 평균 금액",value:won(ta/n),change:"",note:"주문 1건 기준"},
-    {label:"최대 판매처",value:cu[0].name,change:"비중 "+pc(cu[0].share),note:won(cu[0].a)},
-    {label:"최대 판매 제품",value:pr[0].name,change:"비중 "+pc(pr[0].share),note:won(pr[0].a)+" · "+fmtN(pr[0].q)+"개"},
+    {label:"최대 매출처",value:cu0,change:"비중 "+pc(cu[0].share),note:won(cu[0].a)},
+    {label:"최대 판매 제품",value:pr0,change:"비중 "+pc(pr[0].share),note:won(pr[0].a)+" · "+fmtN(pr[0].q)+"개"},
     {label:"최대 매출일",value:mdKo(peak),change:"",note:won(dm[peak])}];
-  var rows=[];cu.forEach(function(x){rows.push(["판매처",x.name,fmtN(x.q),fmtN(x.a),pc(x.share)])});pr.forEach(function(x){rows.push(["제품",x.name,fmtN(x.q),fmtN(x.a),pc(x.share)])});
+  var rows=[];cu.forEach(function(x){rows.push(["매출처",x.name,x.code||"",fmtN(x.q),fmtN(x.a),pc(x.share)])});pr.forEach(function(x){rows.push(["제품",x.name,x.code||"",fmtN(x.q),fmtN(x.a),pc(x.share)])});
   var top3=sum(cu.slice(0,3).map(function(x){return x.a}))/ta;
   var an=[period+" 동안 판매가 있었던 "+days+"일에 "+n+"건, 총 "+won(ta)+"("+fmtN(tq)+"개)을 판매했다.",
-    "판매처별 매출 1위는 "+cu[0].name+" "+won(cu[0].a)+"("+pc(cu[0].share)+")이며"+(cu.length>=3?", 상위 3곳이 전체의 "+pc(top3)+"를 차지한다.":" 순이다."),
-    "제품별 매출 1위는 "+pr[0].name+" "+won(pr[0].a)+"("+pc(pr[0].share)+")"+(pr.length>1?"이고, 그다음은 "+pr.slice(1,3).map(function(x){return x.name}).join(", ")+" 순이다.":"이다.")];
+    "매출처별 매출 1위는 "+cu0+" "+won(cu[0].a)+"("+pc(cu[0].share)+")이며"+(cu.length>=3?", 상위 3곳이 전체의 "+pc(top3)+"를 차지한다.":" 순이다."),
+    "제품별 매출 1위는 "+pr0+" "+won(pr[0].a)+"("+pc(pr[0].share)+")"+(pr.length>1?"이고, 그다음은 "+pr.slice(1,3).map(function(x){return x.name+(x.code?"("+x.code+")":"")}).join(", ")+" 순이다.":"이다.")];
   if(buckets.length>=2){var mx=buckets.reduce(function(b,x){return x.a>b.a?x:b},buckets[0]);
     var mn=buckets.reduce(function(b,x){return x.a<b.a?x:b},buckets[0]);
     if(buckets.length>6)an.push(word+" 매출은 "+buckets[0].label+" "+won(buckets[0].a)+"에서 "+buckets[buckets.length-1].label+" "+won(buckets[buckets.length-1].a)+"로 이어졌고, 가장 높은 구간은 "+mx.label+"("+won(mx.a)+"), 가장 낮은 구간은 "+mn.label+"("+won(mn.a)+")이다.");
     else an.push(word+" 매출은 "+buckets.map(function(x){return x.label+" "+won(x.a)}).join(" → ")+"이며, 가장 높은 구간은 "+mx.label+"("+won(mx.a)+")이다.")}
   an.push("매출이 가장 컸던 날은 "+mdKo(peak)+"("+won(dm[peak])+")이다.");
   var is=[];
-  if(cu[0].share>=.35&&cu.length>1)is.push("판매처 쏠림: "+cu[0].name+" 비중이 "+pc(cu[0].share)+"로 높아 한 판매처에 대한 의존도가 크다.");
-  if(pr[0].share>=.25&&pr.length>1)is.push("제품 쏠림: "+pr[0].name+" 한 제품이 전체 매출의 "+pc(pr[0].share)+"를 차지한다.");
+  if(cu[0].share>=.35&&cu.length>1)is.push("매출처 쏠림: "+cu0+" 비중이 "+pc(cu[0].share)+"로 높아 한 매출처에 대한 의존도가 크다.");
+  if(pr[0].share>=.25&&pr.length>1)is.push("제품 쏠림: "+pr0+" 한 제품이 전체 매출의 "+pc(pr[0].share)+"를 차지한다.");
   var lb=buckets[buckets.length-1];if(same&&lb.cov<7&&buckets.length>=3)is.push("마지막 구간 "+lb.label.replace(/\(.*\)/,"")+"은 "+lb.cov+"일치라 '다음 주 예상'이 낮게 나올 수 있다. 예상값은 참고용이다.");
   var iss=is.concat(issues),pl=plans.slice(-3);
-  var ov=period+" 총 매출은 "+won(ta)+"("+n+"건)이다. "+"판매처 1위는 "+cu[0].name+"("+pc(cu[0].share)+"), 제품 1위는 "+pr[0].name+"("+pc(pr[0].share)+")이다. 이 보고서는 일일 일지 "+dates.length+"일치를 자동으로 합산해 만들었다.";
+  var ov=period+" 총 매출은 "+won(ta)+"("+n+"건)이다. "+"매출처 1위는 "+cu0+"("+pc(cu[0].share)+"), 제품 1위는 "+pr0+"("+pc(pr[0].share)+")이다. 이 보고서는 일일 일지 "+dates.length+"일치를 자동으로 합산해 만들었다.";
   var top="";Object.keys(au).forEach(function(k){if(!top||au[k]>au[top])top=k});
-  return{title:period+" 판매실적 보고서",period:period,author:top,overview:ov,kpis:kpis,series:series,cols:["구분","항목","수량","금액(원)","비중"],rows:rows,
+  return{title:period+" 판매실적 보고서",period:period,author:top,overview:ov,kpis:kpis,series:series,cols:["구분","항목","코드","수량","금액(원)","비중"],rows:rows,
     analysis:an,issues:iss,plans:pl,unit:"원",punit:punit,method:"linear",stats:{nLogs:dates.length,days:days,n:n,ta:ta,tq:tq}}}
 
 /* ===== 월 일지 ===== */
@@ -1026,15 +1034,31 @@ function refresh(){const a=analyze(R.series,$("punit").value,$("unit").value.tri
   a.kpis.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
     l.textContent=k.label;b.textContent=k.value;sp.textContent=k.note;d.appendChild(l);d.appendChild(b);d.appendChild(sp);box.appendChild(d)});
   cv.style.display="block";drawTrend(cv,a,"매출 추이와 예상")}
-function filterLogByQuery(logsSrc, qStr){
+function matchRowQuery(r, q, pq){
+  const custName = String(r.cust || "").trim();
+  const custCode = getCCode(custName, r.ccode);
+  const prodName = String(r.product || "").trim();
+  const prodCode = getPCode(prodName, r.pcode);
+  if(q){
+    const mCust = custName.toLowerCase().indexOf(q) >= 0 || custCode.toLowerCase().indexOf(q) >= 0;
+    if(!mCust) return false;
+  }
+  if(pq){
+    const mProd = prodName.toLowerCase().indexOf(pq) >= 0 || prodCode.toLowerCase().indexOf(pq) >= 0;
+    if(!mProd) return false;
+  }
+  return true;
+}
+function filterLogByQuery(logsSrc, qStr, pqStr){
   const q = (qStr != null ? qStr : ($("d-q") && $("d-q").value || "")).trim().toLowerCase();
-  if(!q || !logsSrc) return logsSrc || {};
+  const pq = (pqStr != null ? pqStr : ($("d-pq") && $("d-pq").value || "")).trim().toLowerCase();
+  if((!q && !pq) || !logsSrc) return logsSrc || {};
   const out = {};
   Object.keys(logsSrc).forEach(function(k){
     const lg = logsSrc[k];
     if(!lg || !Array.isArray(lg.rows)) return;
     const rows = lg.rows.filter(function(r){
-      return String(r.cust || "").toLowerCase().indexOf(q) >= 0;
+      return matchRowQuery(r, q, pq);
     });
     if(rows.length){
       out[k] = Object.assign({}, lg, { rows: rows });
@@ -1450,24 +1474,34 @@ function ledgerFromWb(wb){
   wb.worksheets.forEach(function(ws){
     let hr=0,col={};for(let r=1;r<=Math.min(ws.rowCount,15)&&!hr;r++){const m={};for(let c=1;c<=ws.columnCount;c++){const t=cellText(ws.getCell(r,c).value).trim();if(t)m[t]=c}if(m["주문일자"]&&(m["판매처"]||m["매출처"])&&(m["주문내역"]||m["수량"]||m["주문수량"])){hr=r;col=m}}
     if(!hr)return;sheets++;
-    const cQ=col["주문내역"]||col["수량"]||col["주문수량"],cP=col["제품명"],cU=col["단가"],cC=col["판매처"]||col["매출처"],cD=col["주문일자"];
+    const cQ=col["주문내역"]||col["수량"]||col["주문수량"],cP=col["제품명"],cPC=col["제품 코드"]||col["제품코드"]||col["상품 코드"]||col["상품코드"]||col["품목 코드"]||col["품목코드"],cU=col["단가"],cC=col["판매처"]||col["매출처"],cCC=col["매출처 코드"]||col["매출처코드"]||col["판매처 코드"]||col["판매처코드"]||col["거래처 코드"]||col["거래처코드"],cD=col["주문일자"];
     for(let r=hr+1;r<=ws.rowCount;r++){const ds=toIso(ws.getCell(r,cD).value);if(!ds)continue;
-      const row={product:cP?cellText(ws.getCell(r,cP).value).trim():"",qty:cellStr(ws.getCell(r,cQ)).trim(),order:"",unit:cU?cellStr(ws.getCell(r,cU)).trim():"",sell:cU?cellStr(ws.getCell(r,cU)).trim():"",cust:cellText(ws.getCell(r,cC).value).trim(),pay:""};
+      const pr=cP?cellText(ws.getCell(r,cP).value).trim():"",cu=cellText(ws.getCell(r,cC).value).trim();
+      const pcode=getPCode(pr,cPC?cellText(ws.getCell(r,cPC).value).trim():""),ccode=getCCode(cu,cCC?cellText(ws.getCell(r,cCC).value).trim():"");
+      const row={product:pr,pcode:pcode,qty:cellStr(ws.getCell(r,cQ)).trim(),order:"",unit:cU?cellStr(ws.getCell(r,cU)).trim():"",sell:cU?cellStr(ws.getCell(r,cU)).trim():"",cust:cu,ccode:ccode,pay:""};
       if(!(row.product||row.qty||row.cust))continue;(by[ds]=by[ds]||[]).push(row);n++}});
   if(!sheets)return null;if(!n)throw new Error("판매 내역을 찾지 못했어요");
   commitDay();LOG={};const ks=Object.keys(by).sort();ks.forEach(function(d){LOG[d]={date:d,author:"",rows:by[d],issues:"",plan:""}});persist();
   return{days:ks.length,n:n,first:ks[0],sheets:sheets}}
 let lastAutoCompany="";
+function searchSummaryLabel(){
+  const qVal=($("d-q")&&$("d-q").value||"").trim(),pqVal=($("d-pq")&&$("d-pq").value||"").trim();
+  const parts=[];
+  if(qVal)parts.push("매출처 \""+qVal+"\"");
+  if(pqVal)parts.push("제품 \""+pqVal+"\"");
+  return parts.join(" · ");
+}
 function makeReport(sub,auto){commitDay();
-  const qVal=($("d-q")&&$("d-q").value||"").trim();
-  const srcLogs=sub&&sub.logs?sub.logs:filterLogByQuery(LOG,qVal);
+  const qVal=($("d-q")&&$("d-q").value||"").trim(),pqVal=($("d-pq")&&$("d-pq").value||"").trim();
+  const tagParts=[];if(qVal)tagParts.push(qVal);if(pqVal)tagParts.push(pqVal);const tag=tagParts.join(" · ");
+  const srcLogs=sub&&sub.logs?sub.logs:filterLogByQuery(LOG,qVal,pqVal);
   const c=compileReport(srcLogs);
   if(!c){if(!auto)msg("m1","판매 내역이 있는 일지가 없어요. '일일 일지' 탭에서 먼저 입력하세요.",1);return false}
   const has=R.title||R.overview||R.series.some(function(s){return s.actual});
   if(has&&!auto&&!confirm("지금 작성 중인 보고서를 지우고 일일 일지로 새로 만들까요?"))return false;
-  if(qVal){
-    c.title=c.period+" ("+qVal+") 판매실적 보고서";
-    if(!$("company").value||$("company").value===lastAutoCompany){$("company").value=qVal;lastAutoCompany=qVal}
+  if(tag){
+    c.title=c.period+" ("+tag+") 판매실적 보고서";
+    if(qVal&&(!$("company").value||$("company").value===lastAutoCompany)){$("company").value=qVal;lastAutoCompany=qVal}
   }else if($("company").value&&$("company").value===lastAutoCompany){
     $("company").value="";lastAutoCompany="";
   }
@@ -1477,7 +1511,8 @@ function makeReport(sub,auto){commitDay();
   R={title:c.title,overview:c.overview,kpis:c.kpis,series:(builtSeries&&builtSeries.length)?builtSeries:c.series,cols:c.cols,rows:c.rows,analysis:c.analysis,issues:c.issues.length?c.issues:[""],plans:c.plans.length?c.plans:[""]};
   renderAll();if(!auto)showTab("rep");
   if(!auto)msg("m1","일일 일지 "+c.stats.nLogs+"일치(판매 "+c.stats.n+"건)로 판매실적 보고서를 만들었어요. 모든 칸을 직접 고칠 수 있고, 아래에서 저장하세요.");
-  if(auto)msg("d-m1",qVal?("판매처 \""+qVal+"\" 검색 결과("+c.stats.n+"건)가 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요."):"선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
+  const sLab=searchSummaryLabel();
+  if(auto)msg("d-m1",sLab?(sLab+" 검색 결과("+c.stats.n+"건)가 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요."):"선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
 
 function dKey(){return $("d-kind").value}
 function dBaseName(){const k=dKey();return(k==="day"?($("d-day").value||$("d-ym").value):$("d-ym").value)+"_판매실적_"+(k==="day"?"일일일지":k==="year"?"연일지":k==="quarter"?"분기일지":"월일지")}
@@ -1519,23 +1554,25 @@ function dRender(mode){/* mode: "today" = 오늘 기준으로 맞춤 */
   const th=$("d-th"),tb=$("d-tb"),box=$("d-cards");th.innerHTML="";tb.innerHTML="";box.innerHTML="";
   const head=function(cols){const tr=document.createElement("tr");cols.forEach(function(h){const c=document.createElement("th");c.textContent=h;tr.appendChild(c)});th.appendChild(tr)};
   const cell=function(tr,v,right){const td=document.createElement("td");td.textContent=v;td.style.padding="5px 8px";if(right)td.style.textAlign="right";tr.appendChild(td)};
-  head(["주문일자","제품명","금액(원)","주문내역","단가(원)","판매처"]);
+  head(["주문일자","제품명","제품 코드","금액(원)","주문내역","단가(원)","매출처","매출처 코드"]);
   let tn=0,tq=0,ta=0;
-  const q=($("d-q").value||"").trim().toLowerCase(),qn=$("d-qn");let tot=0;
-  sel.forEach(function(k){if(!LOG[k])return;dailyCalc(LOG[k]).rows.forEach(function(r){tot++;if(q&&String(r.cust||"").toLowerCase().indexOf(q)<0)return;tn++;tq+=r.qty||0;ta+=r.amt||0;const tr=document.createElement("tr");
-    [k,r.product,fmtN(r.amt||0),fmtN(r.qty||0),fmtN(parseAmt(r.sell)||0),r.cust].forEach(function(v,j){cell(tr,v,j>=2&&j<=4)});tb.appendChild(tr)})});
-  qn.hidden=!q;if(q)qn.textContent="판매처 \""+$("d-q").value.trim()+"\" 검색 결과 "+tn+"건 (이 기간 전체 "+tot+"건) – 검색한 판매처 기준으로 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요.";
-  if(tn){const tr=document.createElement("tr");tr.style.fontWeight="700";tr.style.background="rgba(127,127,127,.1)";["합계 "+tn+"건","",fmtN(ta),fmtN(tq),"",""].forEach(function(v,j){cell(tr,v,j>=2&&j<=4)});tb.appendChild(tr)}
-  else{const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.className="note";td.textContent=q&&tot?"검색한 판매처가 이 기간에 없어요.":"이 기간에는 불러온 일지가 없어요. 기간을 바꿔 보세요.";tr.appendChild(td);tb.appendChild(tr)}
+  const q=($("d-q").value||"").trim().toLowerCase(),pq=($("d-pq")&&$("d-pq").value||"").trim().toLowerCase(),qn=$("d-qn");let tot=0;
+  sel.forEach(function(k){if(!LOG[k])return;dailyCalc(LOG[k]).rows.forEach(function(r){tot++;if(!matchRowQuery(r,q,pq))return;tn++;tq+=r.qty||0;ta+=r.amt||0;const tr=document.createElement("tr");
+    [k,r.product,r.pcode||"",fmtN(r.amt||0),fmtN(r.qty||0),fmtN(parseAmt(r.sell)||0),r.cust,r.ccode||""].forEach(function(v,j){cell(tr,v,j>=3&&j<=5)});tb.appendChild(tr)})});
+  const sLab=searchSummaryLabel();
+  qn.hidden=!sLab;if(sLab)qn.textContent=sLab+" 검색 결과 "+tn+"건 (이 기간 전체 "+tot+"건) – 검색한 기준으로 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요.";
+  if(tn){const tr=document.createElement("tr");tr.style.fontWeight="700";tr.style.background="rgba(127,127,127,.1)";["합계 "+tn+"건","","",fmtN(ta),fmtN(tq),"","",""].forEach(function(v,j){cell(tr,v,j>=3&&j<=5)});tb.appendChild(tr)}
+  else{const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=8;td.className="note";td.textContent=sLab&&tot?"검색한 매출처·제품이 이 기간에 없어요.":"이 기간에는 불러온 일지가 없어요. 기간을 바꿔 보세요.";tr.appendChild(td);tb.appendChild(tr)}
   let cards;
   if(isDay)cards=[["판매 건수",tn+"건",""],["총 주문내역",fmtN(tq),""],["총 금액",fmtN(ta)+"원",""]];
-  else{const mc=monthCalc(filterLogByQuery(LOG,q),ym,{scope:keyK});cards=[["판매 건수",mc.n+"건",mc.act+mc.W.u+" 판매"],["총 주문내역",fmtN(mc.tq),""],["총 금액",fmtN(mc.ta)+"원",""],[mc.W.avgL,fmtN(mc.avg)+"원",""],[mc.W.peakL,mc.peak?mc.peak.lab.replace(/\(.\)$/,""):"—",mc.peak?fmtN(mc.peak.a)+"원":""]]}
+  else{const mc=monthCalc(filterLogByQuery(LOG,q,pq),ym,{scope:keyK});cards=[["판매 건수",mc.n+"건",mc.act+mc.W.u+" 판매"],["총 주문내역",fmtN(mc.tq),""],["총 금액",fmtN(mc.ta)+"원",""],[mc.W.avgL,fmtN(mc.avg)+"원",""],[mc.W.peakL,mc.peak?mc.peak.lab.replace(/\(.\)$/,""):"—",mc.peak?fmtN(mc.peak.a)+"원":""]]}
   cards.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");l.textContent=k[0];b.textContent=k[1];s.textContent=k[2]||" ";d.appendChild(l);d.appendChild(b);d.appendChild(s);box.appendChild(d)})}
 function autoReport(){const fLog=filterLogByQuery(LOG),ks=Object.keys(fLog),ym=$("d-ym").value,kind=dKey(),sub={};
   if(kind==="day"){const k=$("d-day").value;if(k&&fLog[k])sub[k]=fLog[k]}else ks.forEach(function(k){if(inP(k,kind,ym)&&dailyCalc(fLog[k]).n>0)sub[k]=fLog[k]});
   if(Object.keys(sub).length){makeReport({logs:sub},true)}
-  else if(($("d-q").value||"").trim()){const bs=buildSeriesForUnit($("punit").value);if(bs){R.series=bs;renderSeries()}msg("d-m1","검색한 판매처 내역이 이 기간에 없어요.",1)}}
+  else if(searchSummaryLabel()){const bs=buildSeriesForUnit($("punit").value);if(bs){R.series=bs;renderSeries()}msg("d-m1","검색한 매출처·제품 내역이 이 기간에 없어요.",1)}}
 $("d-q").oninput=function(){dRender();autoReport()};
+if($("d-pq"))$("d-pq").oninput=function(){dRender();autoReport()};
 $("d-kind").onchange=function(){dRender();autoReport()};$("d-ym").onchange=function(){dRender();autoReport()};$("d-day").onchange=function(){dRender();autoReport()};
 function dObj(){const fLog=filterLogByQuery(LOG),isDay=dKey()==="day";if(isDay&&!fLog[$("d-day").value])throw new Error("이 날에는 불러온 일지가 없어요");return isDay?fLog[$("d-day").value]:{logs:fLog,month:$("d-ym").value,scope:dKey(),author:"",issues:"",plan:""}}
 function dTool(ok){return ok?null:"저장 도구를 불러오지 못했어요. 인터넷 연결을 확인하고 페이지를 새로고침해 주세요."}
@@ -1547,7 +1584,7 @@ $("d-dp").onclick=async function(){const e=dTool(typeof PptxGenJS!=="undefined")
   try{const isD=dKey()==="day";save(await(isD?buildDailyPptx(dObj()):buildMonthlyPptx(dObj())).write({outputType:"blob"}),dBaseName()+".pptx");msg("d-m2","PowerPoint 파일을 저장했어요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
 $("d-dh").onclick=async function(){const e=dTool(typeof docx!=="undefined");if(e)return msg("d-m2",e,1);
   try{const isD=dKey()==="day";save(await docx.Packer.toBlob(isD?buildDailyDocx(dObj()):buildMonthlyDocx(dObj())),dBaseName()+"_한글용.docx");msg("d-m2","저장했어요. 한글에서 열고 '다른 이름으로 저장'에서 HWP/HWPX를 고르면 한글 파일이 돼요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
-$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};persist();R=blankReport();$("d-q").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
+$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};persist();R=blankReport();$("d-q").value="";if($("d-pq"))$("d-pq").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
 $("d-file").onchange=async function(){const f=$("d-file").files[0];if(!f)return;
   try{if(typeof ExcelJS==="undefined")throw new Error("인터넷 연결이 필요해요");if(!/\.xlsx$/i.test(f.name))throw new Error("지원하지 않는 형식이에요 (.xlsx만 가능)");
     const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());const L=ledgerFromWb(wb);if(!L)throw new Error("주문일자·제품명·주문내역·단가·매출처 열이 있는 원장 형식이 아니에요");
