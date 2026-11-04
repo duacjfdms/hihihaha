@@ -1026,9 +1026,30 @@ function refresh(){const a=analyze(R.series,$("punit").value,$("unit").value.tri
   a.kpis.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
     l.textContent=k.label;b.textContent=k.value;sp.textContent=k.note;d.appendChild(l);d.appendChild(b);d.appendChild(sp);box.appendChild(d)});
   cv.style.display="block";drawTrend(cv,a,"매출 추이와 예상")}
+function filterLogByQuery(logsSrc, qStr){
+  const q = (qStr != null ? qStr : ($("d-q") && $("d-q").value || "")).trim().toLowerCase();
+  if(!q || !logsSrc) return logsSrc || {};
+  const out = {};
+  Object.keys(logsSrc).forEach(function(k){
+    const lg = logsSrc[k];
+    if(!lg || !Array.isArray(lg.rows)) return;
+    const rows = lg.rows.filter(function(r){
+      return String(r.cust || "").toLowerCase().indexOf(q) >= 0;
+    });
+    if(rows.length){
+      out[k] = Object.assign({}, lg, { rows: rows });
+    }
+  });
+  return out;
+}
 function buildSeriesForUnit(unit){
-  const dates = Object.keys(typeof LOG !== "undefined" && LOG ? LOG : {}).filter(function(k){
-    return ymd(k) && dailyCalc(LOG[k]).n > 0;
+  const rawLog = typeof LOG !== "undefined" && LOG ? LOG : {};
+  const dates = Object.keys(rawLog).filter(function(k){
+    return ymd(k) && dailyCalc(rawLog[k]).n > 0;
+  }).sort();
+  const activeLog = filterLogByQuery(rawLog);
+  const activeDates = Object.keys(activeLog).filter(function(k){
+    return ymd(k) && dailyCalc(activeLog[k]).n > 0;
   }).sort();
 
   let targetYear = 0, targetMonth = 0, targetQuarter = 0, scopeType = "";
@@ -1125,9 +1146,9 @@ function buildSeriesForUnit(unit){
 
   const sumDates = function(pred){
     let tot = 0;
-    dates.forEach(function(dt){
+    activeDates.forEach(function(dt){
       if(pred(dt)){
-        tot += (dailyCalc(LOG[dt]).ta || 0);
+        tot += (dailyCalc(activeLog[dt]).ta || 0);
       }
     });
     return tot;
@@ -1436,15 +1457,27 @@ function ledgerFromWb(wb){
   if(!sheets)return null;if(!n)throw new Error("판매 내역을 찾지 못했어요");
   commitDay();LOG={};const ks=Object.keys(by).sort();ks.forEach(function(d){LOG[d]={date:d,author:"",rows:by[d],issues:"",plan:""}});persist();
   return{days:ks.length,n:n,first:ks[0],sheets:sheets}}
-function makeReport(sub,auto){commitDay();const c=compileReport(sub&&sub.logs?sub.logs:LOG);
-  if(!c){msg("m1","판매 내역이 있는 일지가 없어요. '일일 일지' 탭에서 먼저 입력하세요.",1);return false}
+let lastAutoCompany="";
+function makeReport(sub,auto){commitDay();
+  const qVal=($("d-q")&&$("d-q").value||"").trim();
+  const srcLogs=sub&&sub.logs?sub.logs:filterLogByQuery(LOG,qVal);
+  const c=compileReport(srcLogs);
+  if(!c){if(!auto)msg("m1","판매 내역이 있는 일지가 없어요. '일일 일지' 탭에서 먼저 입력하세요.",1);return false}
   const has=R.title||R.overview||R.series.some(function(s){return s.actual});
   if(has&&!auto&&!confirm("지금 작성 중인 보고서를 지우고 일일 일지로 새로 만들까요?"))return false;
-  R={title:c.title,overview:c.overview,kpis:c.kpis,series:c.series,cols:c.cols,rows:c.rows,analysis:c.analysis,issues:c.issues.length?c.issues:[""],plans:c.plans.length?c.plans:[""]};
-  $("period").value=c.period;$("author").value=c.author;$("unit").value=c.unit;$("punit").value=c.punit;$("method").value=c.method;
+  if(qVal){
+    c.title=c.period+" ("+qVal+") 판매실적 보고서";
+    if(!$("company").value||$("company").value===lastAutoCompany){$("company").value=qVal;lastAutoCompany=qVal}
+  }else if($("company").value&&$("company").value===lastAutoCompany){
+    $("company").value="";lastAutoCompany="";
+  }
+  const curPunit=auto&&$("punit")&&$("punit").value&&R.series&&R.series.some(function(s){return s.actual})?$("punit").value:c.punit;
+  $("period").value=c.period;$("author").value=c.author;$("unit").value=c.unit;$("punit").value=curPunit;$("method").value=c.method;
+  const builtSeries=buildSeriesForUnit(curPunit);
+  R={title:c.title,overview:c.overview,kpis:c.kpis,series:(builtSeries&&builtSeries.length)?builtSeries:c.series,cols:c.cols,rows:c.rows,analysis:c.analysis,issues:c.issues.length?c.issues:[""],plans:c.plans.length?c.plans:[""]};
   renderAll();if(!auto)showTab("rep");
   if(!auto)msg("m1","일일 일지 "+c.stats.nLogs+"일치(판매 "+c.stats.n+"건)로 판매실적 보고서를 만들었어요. 모든 칸을 직접 고칠 수 있고, 아래에서 저장하세요.");
-  if(auto)msg("d-m1","선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
+  if(auto)msg("d-m1",qVal?("판매처 \""+qVal+"\" 검색 결과("+c.stats.n+"건)가 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요."):"선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
 
 function dKey(){return $("d-kind").value}
 function dBaseName(){const k=dKey();return(k==="day"?($("d-day").value||$("d-ym").value):$("d-ym").value)+"_판매실적_"+(k==="day"?"일일일지":k==="year"?"연일지":k==="quarter"?"분기일지":"월일지")}
@@ -1491,20 +1524,20 @@ function dRender(mode){/* mode: "today" = 오늘 기준으로 맞춤 */
   const q=($("d-q").value||"").trim().toLowerCase(),qn=$("d-qn");let tot=0;
   sel.forEach(function(k){if(!LOG[k])return;dailyCalc(LOG[k]).rows.forEach(function(r){tot++;if(q&&String(r.cust||"").toLowerCase().indexOf(q)<0)return;tn++;tq+=r.qty||0;ta+=r.amt||0;const tr=document.createElement("tr");
     [k,r.product,fmtN(r.amt||0),fmtN(r.qty||0),fmtN(parseAmt(r.sell)||0),r.cust].forEach(function(v,j){cell(tr,v,j>=2&&j<=4)});tb.appendChild(tr)})});
-  qn.hidden=!q;if(q)qn.textContent="판매처 \""+$("d-q").value.trim()+"\" 검색 결과 "+tn+"건 (이 기간 전체 "+tot+"건). 저장되는 파일에는 검색과 상관없이 선택한 기간 전체가 들어가요.";
+  qn.hidden=!q;if(q)qn.textContent="판매처 \""+$("d-q").value.trim()+"\" 검색 결과 "+tn+"건 (이 기간 전체 "+tot+"건) – 검색한 판매처 기준으로 보고서 작성(매출 추이·지표·상세·분석)에 모두 적용되었어요.";
   if(tn){const tr=document.createElement("tr");tr.style.fontWeight="700";tr.style.background="rgba(127,127,127,.1)";["합계 "+tn+"건","",fmtN(ta),fmtN(tq),"",""].forEach(function(v,j){cell(tr,v,j>=2&&j<=4)});tb.appendChild(tr)}
   else{const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.className="note";td.textContent=q&&tot?"검색한 판매처가 이 기간에 없어요.":"이 기간에는 불러온 일지가 없어요. 기간을 바꿔 보세요.";tr.appendChild(td);tb.appendChild(tr)}
   let cards;
-  if(q)cards=[["판매 건수",tn+"건",""],["총 주문내역",fmtN(tq),""],["총 금액",fmtN(ta)+"원",""]];
-  else if(isDay)cards=[["판매 건수",tn+"건",""],["총 주문내역",fmtN(tq),""],["총 금액",fmtN(ta)+"원",""]];
-  else{const mc=monthCalc(LOG,ym,{scope:keyK});cards=[["판매 건수",mc.n+"건",mc.act+mc.W.u+" 판매"],["총 주문내역",fmtN(mc.tq),""],["총 금액",fmtN(mc.ta)+"원",""],[mc.W.avgL,fmtN(mc.avg)+"원",""],[mc.W.peakL,mc.peak?mc.peak.lab.replace(/\(.\)$/,""):"—",mc.peak?fmtN(mc.peak.a)+"원":""]]}
+  if(isDay)cards=[["판매 건수",tn+"건",""],["총 주문내역",fmtN(tq),""],["총 금액",fmtN(ta)+"원",""]];
+  else{const mc=monthCalc(filterLogByQuery(LOG,q),ym,{scope:keyK});cards=[["판매 건수",mc.n+"건",mc.act+mc.W.u+" 판매"],["총 주문내역",fmtN(mc.tq),""],["총 금액",fmtN(mc.ta)+"원",""],[mc.W.avgL,fmtN(mc.avg)+"원",""],[mc.W.peakL,mc.peak?mc.peak.lab.replace(/\(.\)$/,""):"—",mc.peak?fmtN(mc.peak.a)+"원":""]]}
   cards.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");l.textContent=k[0];b.textContent=k[1];s.textContent=k[2]||" ";d.appendChild(l);d.appendChild(b);d.appendChild(s);box.appendChild(d)})}
-function autoReport(){const ks=Object.keys(LOG),ym=$("d-ym").value,kind=dKey(),sub={};
-  if(kind==="day"){const k=$("d-day").value;if(k&&LOG[k])sub[k]=LOG[k]}else ks.forEach(function(k){if(inP(k,kind,ym)&&dailyCalc(LOG[k]).n>0)sub[k]=LOG[k]});
-  if(Object.keys(sub).length)makeReport({logs:sub},true)}
-$("d-q").oninput=function(){dRender()};
+function autoReport(){const fLog=filterLogByQuery(LOG),ks=Object.keys(fLog),ym=$("d-ym").value,kind=dKey(),sub={};
+  if(kind==="day"){const k=$("d-day").value;if(k&&fLog[k])sub[k]=fLog[k]}else ks.forEach(function(k){if(inP(k,kind,ym)&&dailyCalc(fLog[k]).n>0)sub[k]=fLog[k]});
+  if(Object.keys(sub).length){makeReport({logs:sub},true)}
+  else if(($("d-q").value||"").trim()){const bs=buildSeriesForUnit($("punit").value);if(bs){R.series=bs;renderSeries()}msg("d-m1","검색한 판매처 내역이 이 기간에 없어요.",1)}}
+$("d-q").oninput=function(){dRender();autoReport()};
 $("d-kind").onchange=function(){dRender();autoReport()};$("d-ym").onchange=function(){dRender();autoReport()};$("d-day").onchange=function(){dRender();autoReport()};
-function dObj(){const isDay=dKey()==="day";if(isDay&&!LOG[$("d-day").value])throw new Error("이 날에는 불러온 일지가 없어요");return isDay?LOG[$("d-day").value]:{logs:LOG,month:$("d-ym").value,scope:dKey(),author:"",issues:"",plan:""}}
+function dObj(){const fLog=filterLogByQuery(LOG),isDay=dKey()==="day";if(isDay&&!fLog[$("d-day").value])throw new Error("이 날에는 불러온 일지가 없어요");return isDay?fLog[$("d-day").value]:{logs:fLog,month:$("d-ym").value,scope:dKey(),author:"",issues:"",plan:""}}
 function dTool(ok){return ok?null:"저장 도구를 불러오지 못했어요. 인터넷 연결을 확인하고 페이지를 새로고침해 주세요."}
 $("d-dw").onclick=async function(){const e=dTool(typeof docx!=="undefined");if(e)return msg("d-m2",e,1);
   try{const isD=dKey()==="day";save(await docx.Packer.toBlob(isD?buildDailyDocx(dObj()):buildMonthlyDocx(dObj())),dBaseName()+".docx");msg("d-m2","Word 파일을 저장했어요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
@@ -1514,7 +1547,7 @@ $("d-dp").onclick=async function(){const e=dTool(typeof PptxGenJS!=="undefined")
   try{const isD=dKey()==="day";save(await(isD?buildDailyPptx(dObj()):buildMonthlyPptx(dObj())).write({outputType:"blob"}),dBaseName()+".pptx");msg("d-m2","PowerPoint 파일을 저장했어요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
 $("d-dh").onclick=async function(){const e=dTool(typeof docx!=="undefined");if(e)return msg("d-m2",e,1);
   try{const isD=dKey()==="day";save(await docx.Packer.toBlob(isD?buildDailyDocx(dObj()):buildMonthlyDocx(dObj())),dBaseName()+"_한글용.docx");msg("d-m2","저장했어요. 한글에서 열고 '다른 이름으로 저장'에서 HWP/HWPX를 고르면 한글 파일이 돼요.")}catch(x){msg("d-m2","저장 오류: "+x.message,1)}};
-$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};persist();R=blankReport();$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
+$("d-clear").onclick=function(){if(confirm("불러온 일지 "+Object.keys(LOG).length+"일치를 모두 지울까요? 되돌릴 수 없어요.")){LOG={};persist();R=blankReport();$("d-q").value="";$("company").value="";lastAutoCompany="";$("period").value="";$("author").value="";msg("m1","");renderAll();dRender("today");msg("d-m1","일지를 모두 지웠어요.")}};
 $("d-file").onchange=async function(){const f=$("d-file").files[0];if(!f)return;
   try{if(typeof ExcelJS==="undefined")throw new Error("인터넷 연결이 필요해요");if(!/\.xlsx$/i.test(f.name))throw new Error("지원하지 않는 형식이에요 (.xlsx만 가능)");
     const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());const L=ledgerFromWb(wb);if(!L)throw new Error("주문일자·제품명·주문내역·단가·매출처 열이 있는 원장 형식이 아니에요");
