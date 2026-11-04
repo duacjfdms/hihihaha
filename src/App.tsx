@@ -4,6 +4,7 @@ import SyntheraWizard from './components/SyntheraWizard'
 export function App() {
   const [currentPage, setCurrentPage] = useState<'landing' | 'wizard'>('landing')
   const [coverGone, setCoverGone] = useState(false)
+  const [playAnimation, setPlayAnimation] = useState(true)
   const stepsRef = useRef<HTMLDivElement>(null)
 
   // Listen for message from iframe ("메인으로" button inside wizard)
@@ -11,30 +12,94 @@ export function App() {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === 'NAVIGATE_HOME') {
         setCurrentPage('landing')
-        setCoverGone(true) // 메인으로 돌아올 때는 히어로 화면으로 바로 표시
+        setCoverGone(true)
+        // Reset and replay gather animation
+        setPlayAnimation(false)
+        setTimeout(() => setPlayAnimation(true), 50)
       }
     }
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [])
 
+  // Cover scroll down detection (mouse wheel or touch)
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (!coverGone && e.deltaY > 20) {
+        setCoverGone(true)
+      }
+    }
+    window.addEventListener('wheel', handleWheel, { passive: true })
+    return () => window.removeEventListener('wheel', handleWheel)
+  }, [coverGone])
+
   const scrollToSteps = (e: React.MouseEvent) => {
     e.preventDefault()
     stepsRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const chips = [
+    { text: '원장_최종.xlsx', type: 'X', color: '#1E7A47', x: '2%', y: '6%', r: '-5deg', d: '0.45s' },
+    { text: '원장_최종_진짜.xlsx', type: 'X', color: '#1E7A47', x: '50%', y: '2%', r: '4deg', d: '0.58s' },
+    { text: '원장_최종_수정2.xlsx', type: 'X', color: '#1E7A47', x: '12%', y: '24%', r: '3deg', d: '0.70s' },
+    { text: '3분기실적_취합.xlsx', type: 'X', color: '#1E7A47', x: '56%', y: '22%', r: '-3deg', d: '0.52s' },
+    { text: '3분기실적(수정).xlsx', type: 'X', color: '#1E7A47', x: '0%', y: '46%', r: '-2deg', d: '0.64s' },
+    { text: '거래처별_정리본.xlsx', type: 'X', color: '#1E7A47', x: '52%', y: '48%', r: '5deg', d: '0.78s' },
+    { text: '일지_영업1팀.xlsx', type: 'X', color: '#1E7A47', x: '8%', y: '72%', r: '4deg', d: '0.56s' },
+    { text: '보고서_v7_최종.pptx', type: 'P', color: '#C8502B', x: '48%', y: '74%', r: '-4deg', d: '0.68s' },
+  ]
+
   if (currentPage === 'wizard') {
-    return <SyntheraWizard onBack={() => {
-      setCurrentPage('landing')
-      setCoverGone(true)
-    }} />
+    return (
+      <SyntheraWizard
+        onBack={() => {
+          setCurrentPage('landing')
+          setCoverGone(true)
+        }}
+      />
+    )
   }
 
   return (
     <div
-      className="min-h-screen bg-[#E8EBE6] text-[#0E0F0C] relative selection:bg-[#9FE870] selection:text-[#0E0F0C]"
+      className="min-h-screen bg-[#E8EBE6] text-[#0E0F0C] relative selection:bg-[#9FE870] selection:text-[#0E0F0C] overflow-x-hidden"
       style={{ fontFamily: "'Inter', 'Pretendard', 'Noto Sans KR', system-ui, sans-serif" }}
     >
+      <style>{`
+        @keyframes gatherChips {
+          0% {
+            opacity: 1;
+            transform: rotate(var(--r)) scale(1);
+          }
+          70% {
+            opacity: 1;
+          }
+          100% {
+            left: 50%;
+            top: 50%;
+            opacity: 0;
+            visibility: hidden;
+            transform: translate(-50%, -50%) rotate(0deg) scale(0.3);
+          }
+        }
+        @keyframes appearReport {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -46%) scale(0.85);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        .anim-chip {
+          animation: gatherChips 1s cubic-bezier(0.6, 0, 0.3, 1) var(--d) forwards;
+        }
+        .anim-report {
+          animation: appearReport 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.15) 1.85s forwards;
+        }
+      `}</style>
+
       {/* ======================================================== */}
       {/* 1. 표지 (Cover Overlay) — 홈 1/4                           */}
       {/* ======================================================== */}
@@ -50,8 +115,8 @@ export function App() {
             alt="Synthera 표지"
             className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#054D28]/40 via-transparent via-40% to-[#054D28] to-85%" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#054D28] via-[#054D28]/80 via-30% to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#054D28]/40 via-transparent via-35% to-[#054D28] to-85%" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#054D28] via-[#054D28]/85 via-25% to-transparent" />
         </div>
 
         {/* Cover Top Header */}
@@ -116,9 +181,9 @@ export function App() {
           </header>
 
           {/* Hero Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center py-16 sm:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center py-14 sm:py-20">
             {/* Left Headline & Action */}
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-6 z-10">
               <h1
                 className="text-4xl sm:text-6xl md:text-7xl font-black text-white leading-[1.12] tracking-tight"
                 style={{ letterSpacing: '-0.04em' }}
@@ -149,63 +214,77 @@ export function App() {
               </div>
             </div>
 
-            {/* Right Report Preview Card with Floating Chips */}
-            <div className="lg:col-span-5 relative flex justify-center py-6">
-              {/* Floating Excel Chips (Animated visual metaphor) */}
-              <div className="absolute -left-4 top-2 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#0E0F0C] text-xs font-bold shadow-xl -rotate-6 animate-pulse">
-                <span className="w-5 h-6 rounded bg-[#1E7A47] text-white flex items-center justify-center text-[10px] font-black">X</span>
-                <span>원장_최종.xlsx</span>
-              </div>
-              <div className="absolute right-0 top-6 hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-[#0E0F0C] text-xs font-bold shadow-xl rotate-6">
-                <span className="w-5 h-6 rounded bg-[#1E7A47] text-white flex items-center justify-center text-[10px] font-black">X</span>
-                <span>원장_최종_진짜.xlsx</span>
-              </div>
-              <div className="absolute -left-6 bottom-8 hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-[#0E0F0C] text-xs font-bold shadow-xl 3deg">
-                <span className="w-5 h-6 rounded bg-[#1E7A47] text-white flex items-center justify-center text-[10px] font-black">X</span>
-                <span>3분기실적_취합.xlsx</span>
-              </div>
-              <div className="absolute right-4 bottom-2 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-[#0E0F0C] text-xs font-bold shadow-xl -rotate-3">
-                <span className="w-5 h-6 rounded bg-[#C8502B] text-white flex items-center justify-center text-[10px] font-black">P</span>
-                <span>보고서_v7_최종.pptx</span>
-              </div>
+            {/* Right Stage: Chips Gather Into Single Report Card */}
+            <div className="lg:col-span-6 relative w-full h-[460px] sm:h-[520px]">
+              {/* Floating & Gathering File Chips */}
+              {chips.map((chip, idx) => (
+                <div
+                  key={idx}
+                  className={`absolute flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white text-[#0E0F0C] text-sm font-bold shadow-xl whitespace-nowrap select-none ${
+                    playAnimation ? 'anim-chip' : ''
+                  }`}
+                  style={{
+                    left: chip.x,
+                    top: chip.y,
+                    transform: `rotate(${chip.r})`,
+                    // @ts-ignore
+                    '--r': chip.r,
+                    '--d': chip.d,
+                    zIndex: 20,
+                  }}
+                >
+                  <span
+                    className="w-6 h-7 rounded text-white flex items-center justify-center text-xs font-black shrink-0"
+                    style={{ backgroundColor: chip.color }}
+                  >
+                    {chip.type}
+                  </span>
+                  <span>{chip.text}</span>
+                </div>
+              ))}
 
-              {/* The Actual Report Preview Card */}
-              <div className="w-full max-w-[380px] bg-white text-[#0E0F0C] rounded-2xl p-7 shadow-2xl relative z-10 border border-white/20">
-                <h3 className="text-2xl font-black tracking-tight text-[#0E0F0C] m-0">
+              {/* The Single Big Report Card that Appears at Center */}
+              <div
+                className={`absolute left-1/2 top-1/2 w-[92%] max-w-[390px] bg-white text-[#0E0F0C] rounded-2xl p-7 sm:p-8 shadow-2xl border border-white/20 select-none ${
+                  playAnimation ? 'anim-report' : 'opacity-0'
+                }`}
+                style={{ zIndex: 30 }}
+              >
+                <h3 className="text-2xl sm:text-[26px] font-black tracking-tight text-[#0E0F0C] m-0">
                   판매실적 보고서
                 </h3>
-                <p className="text-xs text-[#6B6F68] mt-1 mb-4 font-semibold">
+                <p className="text-sm text-[#6B6F68] mt-1 mb-4 font-semibold">
                   영업1팀, 2026년 3분기
                 </p>
-                <div className="border-t-2 border-[#0E0F0C] mb-5" />
+                <div className="border-t-[3px] border-[#0E0F0C] mb-5" />
 
-                <p className="text-xs font-bold text-[#0E0F0C] mb-2">매출 추이와 전망</p>
-                
+                <p className="text-sm font-extrabold text-[#0E0F0C] mb-3">매출 추이와 전망</p>
+
                 {/* Bar Chart Simulation */}
                 <div className="flex items-end gap-2.5 h-28 mb-5 pb-1 border-b-2 border-[#0E0F0C]">
-                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '45%' }} />
-                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '60%' }} />
-                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '54%' }} />
-                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '75%' }} />
-                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '82%' }} />
+                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '42%' }} />
+                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '55%' }} />
+                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '50%' }} />
+                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '68%' }} />
+                  <div className="flex-1 bg-[#054D28] rounded-t-sm" style={{ height: '74%' }} />
                   {/* Forecast Bar (Striped Lime) */}
                   <div
                     className="flex-1 rounded-t-sm border border-[#054D28]"
                     style={{
-                      height: '96%',
+                      height: '88%',
                       backgroundImage:
-                        'repeating-linear-gradient(135deg, #9FE870 0, #9FE870 5px, #C8F2AC 5px, #C8F2AC 10px)'
+                        'repeating-linear-gradient(135deg, #9FE870 0, #9FE870 6px, #C8F2AC 6px, #C8F2AC 12px)',
                     }}
                   />
                 </div>
 
                 {/* Text skeleton lines */}
-                <div className="h-2 rounded bg-[#E1E4DE] mb-2 w-full" />
-                <div className="h-2 rounded bg-[#E1E4DE] mb-2 w-4/5" />
-                <div className="h-2 rounded bg-[#E1E4DE] mb-5 w-3/5" />
+                <div className="h-2 rounded bg-[#E1E4DE] mb-2.5 w-full" />
+                <div className="h-2 rounded bg-[#E1E4DE] mb-2.5 w-[82%]" />
+                <div className="h-2 rounded bg-[#E1E4DE] mb-5 w-[60%]" />
 
                 {/* Export Formats Pills */}
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#E1E4DE]">
+                <div className="flex flex-wrap gap-1.5 pt-3 border-t border-[#E1E4DE]">
                   <span className="px-3 py-1 rounded-full bg-[#E2F6D5] text-[#054D28] text-xs font-bold">
                     Word
                   </span>
@@ -229,20 +308,25 @@ export function App() {
       {/* 3. 전후 비교 (Before / After) — 홈 3/4                   */}
       {/* ======================================================== */}
       <section className="w-full">
-        {/* Top Split Photos */}
+        {/* Top Split Photos — 정확한 Before/After 상단 사진 분할 */}
         <div className="grid grid-cols-1 md:grid-cols-2">
-          <div className="w-full h-64 sm:h-80 md:h-[380px] overflow-hidden bg-[#14171F]">
+          {/* Before Photo: 좌측 절반의 야근 모습 크롭 */}
+          <div className="w-full h-64 sm:h-80 md:h-[380px] overflow-hidden bg-[#14171F] relative">
             <img
               src="/images/image3.jpg"
               alt="보고 전날 밤늦은 회의실 모습"
-              className="w-[200%] max-w-none h-full object-cover object-left"
+              className="absolute left-0 top-0 w-[200%] h-[200%] max-w-none object-cover"
+              style={{ objectPosition: '0% 0%' }}
             />
           </div>
-          <div className="w-full h-64 sm:h-80 md:h-[380px] overflow-hidden bg-[#9FE870]">
+
+          {/* After Photo: 우측 절반의 밝은 회의실 모습 크롭 */}
+          <div className="w-full h-64 sm:h-80 md:h-[380px] overflow-hidden bg-[#9FE870] relative">
             <img
               src="/images/image3.jpg"
               alt="Synthera로 밝아진 회의실 모습"
-              className="w-[200%] max-w-none h-full object-cover object-right -translate-x-1/2"
+              className="absolute right-0 top-0 w-[200%] h-[200%] max-w-none object-cover"
+              style={{ objectPosition: '100% 0%' }}
             />
           </div>
         </div>
