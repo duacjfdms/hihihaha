@@ -361,7 +361,7 @@ export function App() {
       {/* ======================================================== */}
       <section ref={stepsRef} id="steps" className="py-20 sm:py-28 max-w-[1240px] mx-auto px-6 sm:px-10">
         <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-[#0E0F0C] mb-14">
-          네 단계면 끝납니다
+          4단계면 끝납니다
         </h2>
 
         {/* 4 Steps Timeline */}

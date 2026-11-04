@@ -293,7 +293,7 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 12px;
       margin: 14px 0
     }
@@ -301,17 +301,17 @@
     .card {
       border: 0;
       border-radius: 24px;
-      padding: 18px 20px;
+      padding: 20px 24px;
       background: var(--sf2)
     }
 
-    .card div {
+    .card div { 
       font-size: 13px;
       font-weight: 600;
       color: var(--body)
-    }
+    ; white-space: nowrap; font-size: 14px; }
 
-    .card b {
+    .card b { 
       display: block;
       font-size: 24px;
       font-weight: 900;
@@ -319,12 +319,12 @@
       color: var(--ink);
       margin: 4px 0 2px;
       letter-spacing: -.02em
-    }
+    ; white-space: nowrap; }
 
-    .card span {
+    .card span { 
       font-size: 13px;
       color: var(--mute)
-    }
+    ; white-space: nowrap; display: block; overflow: hidden; text-overflow: ellipsis; }
 
     .dl {
       display: flex;
@@ -702,7 +702,7 @@
     }
 
     .content-container {
-      max-width: 860px;
+      max-width: 1100px;
       margin: 0 auto
     }
 
@@ -883,23 +883,23 @@
             <p class="note" id="d-sum"></p>
             <div class="row">
               <label style="max-width:160px">구분<select id="d-kind">
-                  <option value="year">연</option>
+                  <option value="year" selected>년</option>
                   <option value="quarter">분기</option>
-                  <option value="month" selected>월</option>
+                  <option value="month">월</option>
                   <option value="day">일자</option>
                 </select></label>
               <label id="d-ymw" style="max-width:220px">기간(년월)<select id="d-ym"></select></label>
               <label id="d-dayw" style="max-width:220px" hidden>일자<select id="d-day"></select></label>
             </div>
             <div class="row" style="margin-top:4px">
-              <label style="max-width:360px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"
+              <label style="flex:1;min-width:300px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     aria-hidden="true">
                     <circle cx="11" cy="11" r="7" />
                     <path d="M20 20l-4-4" />
                   </svg>매출처(판매처) 검색</span><input id="d-q" type="search" placeholder="매출처명 또는 매출처 코드 (예: 대성상사, CUST-001)"
                   autocomplete="off"></label>
-              <label style="max-width:360px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"
+              <label style="flex:1;min-width:300px"><span class="lb"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     aria-hidden="true">
                     <circle cx="11" cy="11" r="7" />
@@ -973,12 +973,12 @@
                 자동으로 만들어져요)</span></h2>
             <div class="row">
               <label>기간 단위<select id="punit">
-                  <option>분기</option>
-                  <option>월</option>
-                  <option>주</option>
-                  <option>일자</option>
-                  <option>반기</option>
-                  <option>연</option>
+                  <option value="년" selected>년</option>
+                  <option value="분기">분기</option>
+                  <option value="월">월</option>
+                  <option value="주">주</option>
+                  <option value="일자">일자</option>
+                  <option value="반기">반기</option>
                 </select></label>
               <label>금액 단위 (표시용)<input id="unit" placeholder="예: 백만 원"></label>
               <label>예상 방법<select id="method">
@@ -1191,13 +1191,13 @@
       if (n >= 2 && v[n - 2] > 0) out.kpis.push({ label: "직전 기간 대비", value: pc(last / v[n - 2] - 1), note: (rows[n - 1].p || "최근") + " " + f(last) });
       var T = 0, A = 0; rows.forEach(function (r) { if (r.t > 0) { T += r.t; A += r.a } });
       if (T > 0) out.kpis.push({ label: "목표 달성률", value: (A / T * 100).toFixed(1) + "%", note: "목표 " + f(T) + " 대비 실적 " + f(A) });
-      var nm = { "분기": "다음 분기", "월": "다음 달", "주": "다음 주", "일자": "다음 날", "반기": "다음 반기", "연": "다음 해" }[punit] || "다음 기간"; out.nextLabel = nm + " 예상";
-      var fc = fcSeries(v, method, 1); if (n === 1 && punit === "연" && typeof LOG !== "undefined") { var yrMatch = String(rows[0].p || "").match(/(\d{4})/); if (yrMatch) { var yr = yrMatch[1], mSums = []; for (var mm = 1; mm <= 12; mm++) { var ym = yr + "-" + ("0" + mm).slice(-2), mAmt = 0; Object.keys(LOG).forEach(function (dt) { if (dt.indexOf(ym + "-") === 0) mAmt += (dailyCalc(LOG[dt]).ta || 0) }); if (mAmt > 0 || mSums.length > 0) mSums.push(mAmt) } if (mSums.length >= 6) { var mFc = fcSeries(mSums, method, 12); if (mFc.length) { var nextYearEst = sum(mFc); if (nextYearEst > 0) fc = [nextYearEst] } } } }
+      var nm = { "분기": "다음 분기", "월": "다음 달", "주": "다음 주", "일자": "다음 날", "반기": "다음 반기", "년":"다음 해","연":"다음 해" }[punit] || "다음 기간"; out.nextLabel = nm + " 예상";
+      var fc = fcSeries(v, method, 1); if (n === 1 && (punit === "년" || punit === "연") && typeof LOG !== "undefined") { var yrMatch = String(rows[0].p || "").match(/(\d{4})/); if (yrMatch) { var yr = yrMatch[1], mSums = []; for (var mm = 1; mm <= 12; mm++) { var ym = yr + "-" + ("0" + mm).slice(-2), mAmt = 0; Object.keys(LOG).forEach(function (dt) { if (dt.indexOf(ym + "-") === 0) mAmt += (dailyCalc(LOG[dt]).ta || 0) }); if (mAmt > 0 || mSums.length > 0) mSums.push(mAmt) } if (mSums.length >= 6) { var mFc = fcSeries(mSums, method, 12); if (mFc.length) { var nextYearEst = sum(mFc); if (nextYearEst > 0) fc = [nextYearEst] } } } }
       if (fc.length) {
         out.next = fc[0]; var mn = { linear: "선형 추세", growth: "평균 증가율", ma: "최근 3기간 평균" }[method] || "";
         var noteStr = mn + " 기준" + (n >= 2 && last > 0 ? ", 직전 대비 " + pc(fc[0] / last - 1) : (n === 1 ? (fc[0] !== last ? ", 월별 추세 반영" : ", 실적 추세 반영") : "")); out.kpis.push({ label: nm + " 예상 매출액", value: f(fc[0]), note: noteStr })
       }
-      var P = { "분기": 4, "월": 12, "주": 1, "일자": 1, "반기": 2, "연": 1 }[punit] || 4;
+      var P = { "분기": 4, "월": 12, "주": 1, "일자": 1, "반기": 2, "년":1,"연":1 }[punit] || 4;
       if (P > 1) {
         if (n < P) { var fr = fcSeries(v, method, P - n); if (fr.length) out.kpis.push({ label: "연간 예상 판매액", value: f(tot + sum(fr)), note: n + "개 기간 실적 + 남은 " + (P - n) + "개 기간 예상" }) }
         else out.kpis.push({ label: "최근 " + P + "기간 합계", value: f(sum(v.slice(-P))), note: "연간 판매액 기준" })
@@ -2136,8 +2136,7 @@
         });
         return out;
       }
-      function kindToPunit(k) {
-        return k === "year" ? "연" : k === "quarter" ? "분기" : k === "day" ? "일자" : "월";
+      function kindToPunit(k) { return k === "year" ? "년" : k === "quarter" ? "분기" : k === "day" ? "일자" : "월";
       }
       function buildSeriesForUnit(unit) {
         const rawLog = typeof LOG !== "undefined" && LOG ? LOG : {};
@@ -2230,7 +2229,7 @@
             return [{ period: "1~7일", target: "", actual: "" }, { period: "8~14일", target: "", actual: "" }, { period: "15~21일", target: "", actual: "" }, { period: "22~28일", target: "", actual: "" }, { period: "29~31일", target: "", actual: "" }];
           }
           if (unit === "반기") return [{ period: "상반기", target: "", actual: "" }, { period: "하반기", target: "", actual: "" }];
-          if (unit === "연") return [{ period: (y - 2) + "년", target: "", actual: "" }, { period: (y - 1) + "년", target: "", actual: "" }, { period: y + "년", target: "", actual: "" }];
+          if ((unit === "년" || unit === "연")) return [{ period: (y - 2) + "년", target: "", actual: "" }, { period: (y - 1) + "년", target: "", actual: "" }, { period: y + "년", target: "", actual: "" }];
           return null;
         }
 
@@ -2410,7 +2409,7 @@
             }
           });
         }
-        else if (unit === "연") {
+        else if ((unit === "년" || unit === "연")) {
           const yearsForUnit = (allYears && allYears.length > 1) ? allYears : targetYears;
           yearsForUnit.forEach(function (yr) {
             const yrPrefix = yr + "-";
@@ -2760,15 +2759,9 @@
       }
       function ymLabel(kind, v, dataVals) { if (v === "all") return dataVals && dataVals.length > 1 ? "전체 (" + dataVals[0] + "년 ~ " + dataVals[dataVals.length - 1] + "년)" : "전체 연도"; return kind === "year" ? v + "년" : kind === "quarter" ? v.slice(0, 4) + "년 " + v.slice(-1) + "분기" : v.slice(0, 4) + "년 " + parseInt(v.slice(5), 10) + "월" }
       function detectLogKind() {
-        const ks = Object.keys(LOG).sort().filter(function (k) { return dailyCalc(LOG[k]).n > 0 });
-        if (!ks.length) return "month";
-        const yrs = ks.map(function (k) { return k.slice(0, 4) }).filter(function (v, i, a) { return a.indexOf(v) === i });
-        if (yrs.length > 1) return "year";
-        const lastY = ks[ks.length - 1].slice(0, 4);
-        const ms = ks.filter(function (k) { return k.slice(0, 4) === lastY }).map(function (k) { return +k.slice(5, 7) }).filter(function (v, i, a) { return a.indexOf(v) === i });
-        return ms.length > 3 ? "year" : ms.length > 1 ? "quarter" : "month";
+        return "year";
       }
-      let lastKind = "month";
+      let lastKind = "year";
       function dRender(mode) {/* mode: "today" = 오늘 기준으로 맞춤 */
         const ks = Object.keys(LOG).sort().filter(function (k) { return dailyCalc(LOG[k]).n > 0 }), kind = dKey(), isDay = kind === "day", isYear = kind === "year";
         const hasData = ks.length > 0;
@@ -3061,7 +3054,7 @@
     }
 
     .content-container {
-      max-width: 920px;
+      max-width: 1100px;
       padding-bottom: 40px
     }
 
