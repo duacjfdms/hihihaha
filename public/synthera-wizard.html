@@ -236,6 +236,10 @@ button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
 <div class="dl"><button type="button" data-dl="ledger-12"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>샘플 엑셀 내려받기 (12개월 원장)</button></div>
 <label>월간 판매 원장 불러오기 (.xlsx)<input type="file" id="d-file" accept=".xlsx"></label>
 <p class="msg" id="d-m1" role="status"></p>
+<div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+<button type="button" class="p" onclick="showTab('rep')"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>보고서 작성으로 이동</button>
+<span style="font-size:13px;color:var(--mute)">원장 데이터를 확인한 후 위 버튼을 누르면 보고서 작성 단계로 이동합니다.</span>
+</div>
 </section>
 <section id="d-pick" hidden>
 <h2>구분 · 기간 선택</h2>
@@ -1004,6 +1008,11 @@ function renderSeries(){const tb=$("sr");tb.innerHTML="";
       inp.value=s[f];inp.oninput=function(){s[f]=inp.value;refresh()};td.appendChild(inp);tr.appendChild(td)});
     const x=document.createElement("td");x.className="x";x.appendChild(mkBtn("✕","삭제",function(){R.series.splice(i,1);renderSeries()}));tr.appendChild(x);tb.appendChild(tr)});
   refresh()}
+function refresh(){const a=analyze(R.series,$("punit").value,$("unit").value.trim(),$("method").value),box=$("auto"),cv=$("cv");box.innerHTML="";
+  if(!a.n){box.innerHTML='<p class="note">기간별 실적을 입력하면 지표·예상·그래프가 여기에 자동으로 나타나요.</p>';cv.style.display="none";return}
+  a.kpis.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
+    l.textContent=k.label;b.textContent=k.value;sp.textContent=k.note;d.appendChild(l);d.appendChild(b);d.appendChild(sp);box.appendChild(d)});
+  cv.style.display="block";drawTrend(cv,a,"매출 추이와 예상")}
 function buildSeriesForUnit(unit){
   const dates = Object.keys(typeof LOG !== "undefined" && LOG ? LOG : {}).filter(function(k){
     return ymd(k) && dailyCalc(LOG[k]).n > 0;
@@ -1149,11 +1158,6 @@ function updateSeriesForPunit(){
   }
 }
 
-function refresh(){const a=analyze(R.series,$("punit").value,$("unit").value.trim(),$("method").value),box=$("auto"),cv=$("cv");box.innerHTML="";
-  if(!a.n){box.innerHTML='<p class="note">기간별 실적을 입력하면 지표·예상·그래프가 여기에 자동으로 나타나요.</p>';cv.style.display="none";return}
-  a.kpis.forEach(function(k){const d=document.createElement("div");d.className="card";const l=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
-    l.textContent=k.label;b.textContent=k.value;sp.textContent=k.note;d.appendChild(l);d.appendChild(b);d.appendChild(sp);box.appendChild(d)});
-  cv.style.display="block";drawTrend(cv,a,"매출 추이와 예상")}
 $("punit").addEventListener("input",updateSeriesForPunit);
 $("punit").addEventListener("change",updateSeriesForPunit);
 ["unit","method"].forEach(function(id){$(id).addEventListener("input",refresh);$(id).addEventListener("change",refresh)});
@@ -1339,7 +1343,7 @@ function makeReport(sub){commitDay();const c=compileReport(sub&&sub.logs?sub.log
   if(has&&!auto&&!confirm("지금 작성 중인 보고서를 지우고 일일 일지로 새로 만들까요?"))return false;
   R={title:c.title,overview:c.overview,kpis:c.kpis,series:c.series,cols:c.cols,rows:c.rows,analysis:c.analysis,issues:c.issues.length?c.issues:[""],plans:c.plans.length?c.plans:[""]};
   $("period").value=c.period;$("author").value=c.author;$("unit").value=c.unit;$("punit").value=c.punit;$("method").value=c.method;
-  renderAll();showTab("rep");
+  renderAll();if(!auto)showTab("rep");
   msg("m1","일일 일지 "+c.stats.nLogs+"일치(판매 "+c.stats.n+"건)로 판매실적 보고서를 만들었어요. 모든 칸을 직접 고칠 수 있고, 아래에서 저장하세요.");if(auto)msg("d-m1","선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
 
 function makeReport(sub,auto){commitDay();const c=compileReport(sub&&sub.logs?sub.logs:LOG);
@@ -1348,7 +1352,7 @@ function makeReport(sub,auto){commitDay();const c=compileReport(sub&&sub.logs?su
   if(has&&!auto&&!confirm("지금 작성 중인 보고서를 지우고 일일 일지로 새로 만들까요?"))return false;
   R={title:c.title,overview:c.overview,kpis:c.kpis,series:c.series,cols:c.cols,rows:c.rows,analysis:c.analysis,issues:c.issues.length?c.issues:[""],plans:c.plans.length?c.plans:[""]};
   $("period").value=c.period;$("author").value=c.author;$("unit").value=c.unit;$("punit").value=c.punit;$("method").value=c.method;
-  renderAll();showTab("rep");
+  renderAll();if(!auto)showTab("rep");
   msg("m1","일일 일지 "+c.stats.nLogs+"일치(판매 "+c.stats.n+"건)로 판매실적 보고서를 만들었어요. 모든 칸을 직접 고칠 수 있고, 아래에서 저장하세요.");if(auto)msg("d-m1","선택한 기간으로 이후 단계의 보고서 내용이 자동으로 채워졌어요.");return true}
 
 function dKey(){return $("d-kind").value}
