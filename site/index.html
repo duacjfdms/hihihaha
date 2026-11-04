@@ -290,7 +290,6 @@ h1 span{display:block;white-space:nowrap}
  <div class="wrap">
   <header class="top">
    <a class="brand" href="#" data-go="cover" aria-label="표지로 이동"><span class="s" aria-hidden="true">S</span>Synthera</a>
-   <a class="btn" href="#" data-go="app">보고서 만들기</a>
   </header>
   <div class="hero-grid">
    <div>
@@ -430,10 +429,6 @@ h1 span{display:block;white-space:nowrap}
     </div>
 
     <div class="sidebar-bottom">
-      <button type="button" class="sidebar-home-link" onclick="window.synShowHome()" title="메인 화면으로 돌아가기">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m0 0l6-6m-6 6l6 6"></path></svg>
-        <span>메인으로 돌아가기</span>
-      </button>
       <div class="sidebar-copy">© 2026 Synthera</div>
     </div>
   </aside>
@@ -22223,7 +22218,8 @@ function saveDState(){dState={kind:$("d-kind").value,ym:$("d-ym").value,day:$("d
 function restoreDState(){if(!dState)return;$("d-kind").value=dState.kind;$("d-ym").value=dState.ym;$("d-day").value=dState.day;$("d-q").value=dState.q;if($("d-pq"))$("d-pq").value=dState.pq}
 function reportHasContent(){return !!(String(R.title||"").trim()||String(R.overview||"").trim()||(R.series||[]).some(function(x){return String(x.actual||"").trim()}))}
 document.addEventListener("click",function(e){const b=e.target.closest&&e.target.closest("#dw,#dx,#dp,#dh");if(b&&!reportHasContent()){e.stopImmediatePropagation();e.preventDefault();msg("m2","저장할 내용이 없어요. 먼저 원장을 불러오거나 보고서 내용을 입력해 주세요.",1)}},true);
-window.addEventListener("beforeunload",function(e){if(Object.keys(LOG).length||reportDirty){e.preventDefault();e.returnValue=""}});
+window.addEventListener("beforeunload",function(e){e.preventDefault();e.returnValue="새로고침하면 작성 중인 내용이 모두 사라집니다. 계속하시겠습니까?";return e.returnValue});
+window.addEventListener("keydown",function(e){if(e.key==="F5"||((e.ctrlKey||e.metaKey)&&(e.key==="r"||e.key==="R"))){if(!confirm("새로고침하면 작성 중인 내용이 모두 사라집니다. 계속하시겠습니까?")){e.preventDefault()}}});
 function periodChange(sync){if(reportDirty&&!confirm("직접 고친 보고서 내용이 있어요. 기간이나 검색을 바꾸면 고친 내용이 새 내용으로 바뀝니다. 계속할까요?")){restoreDState();return}
   dRender();autoReport(sync);saveDState()}
 (function(){const steps=[].slice.call(document.querySelectorAll(".step")).filter(function(x){return["제목·요약","매출 추이","핵심 지표","실적 상세","분석·이슈·계획"].indexOf(x.dataset.title)>=0});

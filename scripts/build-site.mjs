@@ -16,3 +16,4 @@ if (!existsSync(resolve(src, 'index.html'))) {
 rmSync(out, { recursive: true, force: true })
 cpSync(src, out, { recursive: true })
 console.log('Synthera 출시본을 dist/ 에 복사했습니다.')
+
