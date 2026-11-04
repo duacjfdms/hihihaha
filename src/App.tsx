@@ -5,6 +5,7 @@ export function App() {
   const [currentPage, setCurrentPage] = useState<'landing' | 'wizard'>('landing')
   const [coverGone, setCoverGone] = useState(false)
   const [playAnimation, setPlayAnimation] = useState(true)
+  const [showReport, setShowReport] = useState(false)
   const stepsRef = useRef<HTMLDivElement>(null)
 
   // Listen for message from iframe ("메인으로" button inside wizard)
@@ -15,12 +16,26 @@ export function App() {
         setCoverGone(true)
         // Reset and replay gather animation
         setPlayAnimation(false)
+        setShowReport(false)
         setTimeout(() => setPlayAnimation(true), 50)
       }
     }
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [])
+
+  // Trigger chips gather and then reveal report card
+  useEffect(() => {
+    if (playAnimation) {
+      setShowReport(false)
+      const timer = setTimeout(() => {
+        setShowReport(true)
+      }, 1450)
+      return () => clearTimeout(timer)
+    } else {
+      setShowReport(false)
+    }
+  }, [playAnimation])
 
   // Cover scroll down detection (mouse wheel or touch)
   useEffect(() => {
@@ -79,24 +94,11 @@ export function App() {
             top: 50%;
             opacity: 0;
             visibility: hidden;
-            transform: translate(-50%, -50%) rotate(0deg) scale(0.3);
-          }
-        }
-        @keyframes appearReport {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, -46%) scale(0.85);
-          }
-          100% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+            transform: translate(-50%, -50%) rotate(0deg) scale(0.25);
           }
         }
         .anim-chip {
           animation: gatherChips 1s cubic-bezier(0.6, 0, 0.3, 1) var(--d) forwards;
-        }
-        .anim-report {
-          animation: appearReport 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.15) 1.85s forwards;
         }
       `}</style>
 
@@ -159,7 +161,7 @@ export function App() {
       {/* ======================================================== */}
       <section className="bg-[#054D28] text-white overflow-hidden relative">
         <div className="max-w-[1240px] mx-auto px-6 sm:px-10">
-          {/* Hero Top Navbar */}
+          {/* Hero Top Navbar (우측 상단 '보고서 만들기' 버튼 제거 완료) */}
           <header className="flex items-center justify-between py-6 border-b border-white/10">
             <button
               onClick={() => setCoverGone(false)}
@@ -170,13 +172,6 @@ export function App() {
                 S
               </span>
               <span className="text-2xl font-black tracking-tight text-white">Synthera</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentPage('wizard')}
-              className="px-6 py-2.5 sm:px-7 sm:py-3 rounded-full bg-[#9FE870] hover:bg-[#B9F293] active:scale-95 text-[#0E0F0C] font-extrabold text-sm sm:text-base transition cursor-pointer"
-            >
-              보고서 만들기
             </button>
           </header>
 
@@ -243,10 +238,12 @@ export function App() {
                 </div>
               ))}
 
-              {/* The Single Big Report Card that Appears at Center */}
+              {/* The Single Big Report Card that Appears at Center (없었다가 모인 뒤 생김) */}
               <div
-                className={`absolute left-1/2 top-1/2 w-[92%] max-w-[390px] bg-white text-[#0E0F0C] rounded-2xl p-7 sm:p-8 shadow-2xl border border-white/20 select-none ${
-                  playAnimation ? 'anim-report' : 'opacity-0'
+                className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-[390px] bg-white text-[#0E0F0C] rounded-2xl p-7 sm:p-8 shadow-2xl border border-white/20 select-none transition-all duration-700 ease-[cubic-bezier(0.2,0.9,0.3,1.15)] ${
+                  showReport
+                    ? 'opacity-100 scale-100 pointer-events-auto'
+                    : 'opacity-0 scale-75 pointer-events-none'
                 }`}
                 style={{ zIndex: 30 }}
               >
