@@ -541,6 +541,15 @@ h1 span{display:block;white-space:nowrap}
 <section>
 <h2><span class="hi"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5"></path><path d="M4 19h16"></path></svg></span>파일로 저장</h2>
 <p class="note">보고용 문서는 Word·한글용, 숫자·표는 Excel, 발표는 PowerPoint로 저장하세요. 그래프는 Word·Excel·PowerPoint 파일에 그림으로 들어가요.</p>
+<div class="syn-step-checklist" style="margin:14px 0 18px;padding:14px 16px;border-radius:12px;background:#f0f7ed;border:1px solid #cce5c4;color:#1d431c;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13.5px;font-weight:600">
+  <span style="display:inline-flex;align-items:center;gap:5px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#256e21" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>1단계: 보고서 정보 완료</span>
+  <span style="color:#9ab594">·</span>
+  <span style="display:inline-flex;align-items:center;gap:5px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#256e21" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>2단계: 원장 데이터 집계 완료</span>
+  <span style="color:#9ab594">·</span>
+  <span style="display:inline-flex;align-items:center;gap:5px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#256e21" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>3단계: 보고서 작성 검토 완료</span>
+  <span style="color:#9ab594">·</span>
+  <span style="display:inline-flex;align-items:center;gap:5px;color:#054d28;font-weight:700"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#054d28" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>4단계: 파일 저장</span>
+</div>
 <div class="dl">
 <button class="p" id="dw" type="button"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5"></path><path d="M4 19h16"></path></svg>Word로 저장 (.docx)</button>
 <button class="p" id="dx" type="button"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5"></path><path d="M4 19h16"></path></svg>Excel로 저장 (.xlsx)</button>
@@ -22217,7 +22226,27 @@ function autoReport(syncPunit){const fLog=filterLogByQuery(LOG),ks=Object.keys(f
 function saveDState(){dState={kind:$("d-kind").value,ym:$("d-ym").value,day:$("d-day").value,q:$("d-q").value,pq:$("d-pq")?$("d-pq").value:""}}
 function restoreDState(){if(!dState)return;$("d-kind").value=dState.kind;$("d-ym").value=dState.ym;$("d-day").value=dState.day;$("d-q").value=dState.q;if($("d-pq"))$("d-pq").value=dState.pq}
 function reportHasContent(){return !!(String(R.title||"").trim()||String(R.overview||"").trim()||(R.series||[]).some(function(x){return String(x.actual||"").trim()}))}
-document.addEventListener("click",function(e){const b=e.target.closest&&e.target.closest("#dw,#dx,#dp,#dh");if(b&&!reportHasContent()){e.stopImmediatePropagation();e.preventDefault();msg("m2","저장할 내용이 없어요. 먼저 원장을 불러오거나 보고서 내용을 입력해 주세요.",1)}},true);
+window.synHasLedger=function(){return typeof LOG!=="undefined"&&Object.keys(LOG).length>0};
+window.synHasReportContent=function(){return typeof reportHasContent==="function"?reportHasContent():false};
+document.addEventListener("click",function(e){
+  const b=e.target.closest&&e.target.closest("#dw,#dx,#dp,#dh");
+  if(b){
+    if(typeof window.synHasLedger==="function"&&!window.synHasLedger()){
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      alert("원장 파일이 아직 불러와지지 않았습니다.\n2단계(원장 불러오기)를 먼저 진행해 주세요.");
+      if(window.goStep)window.goStep(1);
+      return;
+    }
+    if(!reportHasContent()){
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      alert("보고서 내용이 비어 있습니다. 이전 단계를 모두 완료해 주세요.\n3단계(보고서 작성)에서 내용을 확인해 주세요.");
+      if(window.goStep)window.goStep(2);
+      return;
+    }
+  }
+},true);
 window.addEventListener("beforeunload",function(e){e.preventDefault();e.returnValue="새로고침하면 작성 중인 내용이 모두 사라집니다. 계속하시겠습니까?";return e.returnValue});
 window.addEventListener("keydown",function(e){if(e.key==="F5"||((e.ctrlKey||e.metaKey)&&(e.key==="r"||e.key==="R"))){if(!confirm("새로고침하면 작성 중인 내용이 모두 사라집니다. 계속하시겠습니까?")){e.preventDefault()}}});
 function periodChange(sync){if(reportDirty&&!confirm("직접 고친 보고서 내용이 있어요. 기간이나 검색을 바꾸면 고친 내용이 새 내용으로 바뀝니다. 계속할까요?")){restoreDState();return}
@@ -22296,8 +22325,43 @@ function updateNav(){
   }
 }
 
+window.synHasVisitedReport=window.synHasVisitedReport||false;
+function canProceedTo(targetStep){
+  if(targetStep<=cur)return true;
+  if(targetStep===1)return true;
+  if(targetStep>=2&&targetStep<=6){
+    if(typeof window.synHasLedger==="function"&&!window.synHasLedger()){
+      alert("판매 원장 엑셀 파일(.xlsx)을 먼저 불러와 주세요.\n2단계(원장 불러오기)로 이동합니다.");
+      go(1);
+      return false;
+    }
+    return true;
+  }
+  if(targetStep>=7){
+    if(typeof window.synHasLedger==="function"&&!window.synHasLedger()){
+      alert("원장 파일이 아직 불러와지지 않았습니다.\n2단계(원장 불러오기)로 이동합니다.");
+      go(1);
+      return false;
+    }
+    if(!window.synHasVisitedReport||(typeof window.synHasReportContent==="function"&&!window.synHasReportContent())){
+      alert("보고서 작성을 먼저 확인하고 작성해야 저장할 수 있습니다.\n3단계(보고서 작성)로 이동합니다.");
+      go(2);
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
 function go(i,noScroll){
-  cur=Math.max(0,Math.min(steps.length-1,i));
+  var target=Math.max(0,Math.min(steps.length-1,i));
+  if(target>cur&&!canProceedTo(target)){
+    return;
+  }
+  cur=target;
+  if(cur>=2&&cur<=6){
+    window.synHasVisitedReport=true;
+  }
   steps.forEach(function(s,k){
     s.classList.toggle("on",k===cur);
   });
