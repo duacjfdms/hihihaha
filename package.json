@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/build-site.mjs && vite preview --host --port 5173",
+    "build": "node scripts/build-site.mjs",
+    "dev:react": "vite",
+    "build:react": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
